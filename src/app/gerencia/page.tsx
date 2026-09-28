@@ -183,7 +183,7 @@ export default async function GerenciaPage({
 
       <div id="relatorios" className="scroll-mt-8">
         {podeExportar ? (
-          <ReportActions periodo={periodo} totalFichas={r.total} podeNominais={veTodas} />
+          <ReportActions periodo={periodo} totalFichas={r.total} totalPercursos={r.saidas} podeNominais={veTodas} />
         ) : (
           <p className="rounded-2xl border border-ink-100 bg-card px-4 py-3 text-[0.8rem] text-ink-500 shadow-card">
             A emissão de relatórios PDF e da planilha CSV depende de permissão de exportação. Solicite ao administrador, se necessário.

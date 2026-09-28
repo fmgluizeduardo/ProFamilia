@@ -7,6 +7,8 @@ import { dataReal } from "@/lib/validacoes";
 import { NextResponse } from "next/server";
 import { autorizarApi, registrarAuditoria } from "@/lib/auth";
 import { veTodasAsFichas } from "@/lib/escopo";
+import { comRetentativa } from "@/lib/db-retry";
+import { classificarFalha, respostaErro } from "@/lib/respostas-api";
 
 function csvCampo(v: string | number | null | undefined): string {
   if (v === null || v === undefined || v === "") return "";
@@ -20,10 +22,8 @@ export async function GET(req: Request) {
   if (!auth.ok) return auth.resposta;
   // A planilha é nominal (todas as fichas): exige acesso às fichas de toda a equipe.
   if (!veTodasAsFichas(auth.usuario)) {
-    return NextResponse.json(
-      { erro: "A exportação nominal exige acesso às fichas de toda a equipe.", codigo: "PERMISSAO" },
-      { status: 403 },
-    );
+    return respostaErro(req, 403, "Acesso restrito",
+      "A exportação nominal exige permissão para ver as fichas de toda a equipe.", "PERMISSAO");
   }
   const url = new URL(req.url);
   const de = url.searchParams.get("de");
@@ -37,11 +37,19 @@ export async function GET(req: Request) {
     condicoes.push(lte(atendimentos.dataAtendimento, ate));
   }
 
-  const fichas = await db
-    .select()
-    .from(atendimentos)
-    .where(condicoes.length ? and(...condicoes) : undefined)
-    .orderBy(desc(atendimentos.numero));
+  let fichas;
+  try {
+    // Nova tentativa automática: o banco pode estar acordando da hibernação.
+    fichas = await comRetentativa(() =>
+      db.select().from(atendimentos)
+        .where(condicoes.length ? and(...condicoes) : undefined)
+        .orderBy(desc(atendimentos.numero)),
+    );
+  } catch (error) {
+    console.error("Erro ao exportar CSV:", error);
+    const f = classificarFalha(error);
+    return respostaErro(req, f.status, f.mensagem.replace("o relatório", "a planilha"), f.detalhe, f.codigo);
+  }
 
   const CABECALHO = [
     "Nº Atendimento", "Data", "Horário", "Local da Abordagem", "Ponto de Referência",

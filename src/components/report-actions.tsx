@@ -27,10 +27,13 @@ const NOMINAIS: TipoRelatorio[] = ["completo", "fichas"];
 export function ReportActions({
   periodo,
   totalFichas,
+  totalPercursos,
   podeNominais,
 }: {
   periodo: Periodo;
   totalFichas: number;
+  /** Saídas de veículo no período (para avisar quando o relatório sairá vazio). */
+  totalPercursos: number;
   /** Relatórios com dados pessoais exigem acesso às fichas de toda a equipe. */
   podeNominais: boolean;
 }) {
@@ -98,6 +101,12 @@ export function ReportActions({
           {TIPOS_RELATORIO[tipo].descricao}
         </p>
 
+        {(tipo === "veiculos" ? totalPercursos === 0 : totalFichas === 0) && (
+          <div className="mt-3 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2.5 text-[0.75rem] leading-relaxed text-brand-900">
+            Não há {tipo === "veiculos" ? "saídas de veículo" : "fichas"} neste período. O documento será
+            emitido com o cabeçalho e as seções vazias — escolha outro período para ver dados preenchidos.
+          </div>
+        )}
         {!podeNominais && (
           <div className="mt-3 rounded-lg border border-ink-200 bg-ink-50 px-3 py-2.5 text-[0.75rem] leading-relaxed text-ink-600">
             Relatórios com dados pessoais (Completo e Prontuários) exigem acesso às fichas de toda a equipe.

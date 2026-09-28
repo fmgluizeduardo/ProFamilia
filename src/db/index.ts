@@ -25,8 +25,17 @@ export const pool =
     connectionString: databaseUrl,
     max: 5,
     idleTimeoutMillis: 20_000,
-    connectionTimeoutMillis: 10_000,
+    // O Neon gratuito hiberna quando fica sem uso; acordar pode levar vários
+    // segundos, então a espera por conexão precisa ser generosa.
+    connectionTimeoutMillis: 25_000,
+    keepAlive: true,
   });
+
+// Um erro de conexão ocioso não pode derrubar o servidor: as rotas já tratam
+// falhas de banco e fazem nova tentativa quando o erro é transitório.
+pool.on("error", (erro) => {
+  console.error("Conexão ociosa com o banco falhou:", erro.message);
+});
 
 globalForDb.__profamiliaPool = pool;
 
