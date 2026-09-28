@@ -5,7 +5,6 @@ import {
   BookOpen,
   CalendarRange,
   Download,
-  FileSpreadsheet,
   FileText,
   House,
   IdCard,
@@ -17,7 +16,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import { Donut, HBars, VBars } from "@/components/charts";
-import { ReportActions } from "@/components/report-actions";
+import { BotaoCsv, ReportActions } from "@/components/report-actions";
 import { exigirUsuario } from "@/lib/auth";
 import { veTodasAsFichas } from "@/lib/escopo";
 import { temPermissao } from "@/lib/permissoes";
@@ -183,7 +182,7 @@ export default async function GerenciaPage({
 
       <div id="relatorios" className="scroll-mt-8">
         {podeExportar ? (
-          <ReportActions periodo={periodo} totalFichas={r.total} totalPercursos={r.saidas} podeNominais={veTodas} />
+          <ReportActions periodo={periodo} totalFichas={r.total} podeNominais={veTodas} />
         ) : (
           <p className="rounded-2xl border border-ink-100 bg-card px-4 py-3 text-[0.8rem] text-ink-500 shadow-card">
             A emissão de relatórios PDF e da planilha CSV depende de permissão de exportação. Solicite ao administrador, se necessário.
@@ -249,10 +248,7 @@ export default async function GerenciaPage({
             <h2 className="font-display text-[0.95rem] font-bold text-ink-900">Fichas do período</h2>
             <p className="mt-0.5 text-[0.7rem] text-ink-400">Para todas as fichas, use o relatório completo ou o CSV.</p>
           </div>
-          <a href={csvHref} className="inline-flex items-center gap-1.5 rounded-lg border border-ink-200 bg-white px-3 py-2 text-[0.74rem] font-bold text-ink-600 transition-colors hover:border-ink-300">
-            <FileSpreadsheet className="h-3.5 w-3.5" />
-            Exportar CSV
-          </a>
+          {podeExportar && <BotaoCsv href={csvHref} />}
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-left text-[0.8rem]">

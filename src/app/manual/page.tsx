@@ -340,6 +340,7 @@ export default async function ManualPage() {
             ["O KM foi recusado no veículo", "Confira o número digitado no hodômetro. O sistema bloqueia KM menor que o registro anterior para proteger o histórico."],
             ["Não consigo registrar outra saída", "Existe um percurso em aberto. Registre a chegada do percurso atual primeiro — o banner “Em rota” mostra qual é."],
             ["O PDF do relatório não abre", "Em períodos muito longos, os relatórios nominais podem ficar indisponíveis por lentidão. Reduza o período ou use o relatório de Indicadores e o CSV."],
+            ["O relatório mostra erro de conexão com o banco", "Aguarde cerca de 30 segundos e toque de novo em Exportar: a primeira geração do dia pode demorar enquanto o banco de dados é ativado. Se o erro continuar, confira a internet e avise a coordenação."],
             ["A tela mostra erro ao carregar", "Verifique a internet e toque em “Tentar novamente”. Se persistir, anote o código do erro exibido na tela e avise a coordenação."],
           ].map(([titulo, texto]) => (
             <div key={titulo} className="rounded-xl border border-ink-100 bg-paper/60 p-3.5">

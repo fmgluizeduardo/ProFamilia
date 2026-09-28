@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { Atendimento, Evolucao, VeiculoRegistro } from "@/db/schema";
 import { ORGAO, RUA_TIPOS, USO_DROGAS, VINCULOS } from "@/lib/constants";
+import { rotuloVeiculo } from "@/lib/frota";
 import { fmtData, fmtDataHora, labelSN, moedaBR, numeroAtendimento } from "@/lib/format";
 import {
   TIPOS_RELATORIO,
@@ -556,6 +557,21 @@ class RelatorioA4 {
     ]);
     this.distribuicao("Saídas por motorista", resumo.porMotorista, resumo.saidas);
     this.distribuicao("Saídas por veículo", resumo.porVeiculo, resumo.saidas);
+
+    this.subtitulo("Frota cadastrada", "Veículos disponíveis para as rondas, independentemente do período.");
+    if (!dados.frota.length) {
+      this.anotacao("Nenhum veículo cadastrado na frota.");
+    } else {
+      this.linhasAlternadas = 0;
+      for (const v of dados.frota) {
+        this.detalhe(
+          rotuloVeiculo(v),
+          `${v.ativo ? "Ativo" : "Inativo"}${v.ano ? ` · Ano ${v.ano}` : ""}${v.cor ? ` · ${v.cor}` : ""} · KM inicial ${v.kmInicial.toLocaleString("pt-BR")}${v.observacoes ? ` · ${v.observacoes}` : ""}`,
+        );
+      }
+      this.y += 6;
+    }
+
     if (!detalhar) return;
 
     this.titulo("04", "Diário de deslocamentos",
@@ -695,3 +711,4 @@ export async function gerarRelatorioPdf(dados: DadosRelatorio, tipo: TipoRelator
   }
   return completo;
 }
+

@@ -104,6 +104,7 @@ divulgação geral, use o de Indicadores.
 | KM recusado | Confira o hodômetro; o sistema bloqueia regressão |
 | Sem nova saída | Há percurso em aberto — registre a chegada primeiro |
 | PDF não abre | Reduza o período ou use Indicadores + CSV |
+| Erro de conexão com o banco no relatório | Aguarde ~30 s e tente de novo (primeira geração do dia ativa o banco); se persistir, confira a internet e avise a coordenação |
 | Erro ao carregar | Confira a internet, “Tentar novamente”; persistindo, anote o código e avise a coordenação |
 
 ## 9. Cuidados com os dados

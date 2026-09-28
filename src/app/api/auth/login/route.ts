@@ -13,7 +13,6 @@ import {
 } from "@/lib/auth";
 import { obterHashFicticio, verificarSenha } from "@/lib/senha";
 import { fmtData, hojeISO } from "@/lib/format";
-import { erroTransitorio } from "@/lib/db-retry";
 
 const ERRO_GENERICO = "Usuário ou senha inválidos.";
 
@@ -103,12 +102,6 @@ export async function POST(req: Request) {
     return resposta;
   } catch (erro) {
     console.error("Erro no login:", erro);
-    if (erroTransitorio(erro)) {
-      return NextResponse.json(
-        { erro: "O banco de dados não respondeu. Ele hiberna quando fica sem uso; aguarde alguns segundos e tente novamente.", codigo: "BANCO_INDISPONIVEL" },
-        { status: 503 },
-      );
-    }
     return NextResponse.json({ erro: "Não foi possível entrar agora. Tente novamente." }, { status: 500 });
   }
 }

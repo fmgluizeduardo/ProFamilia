@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
-import { carregarDadosRelatorio, resolverPeriodo, TIPOS_RELATORIO, type TipoRelatorio } from "@/lib/relatorios";
+import { carregarDadosRelatorioComRepeticao, ehErroConexao, resolverPeriodo, TIPOS_RELATORIO, type TipoRelatorio } from "@/lib/relatorios";
 import { gerarRelatorioPdf } from "@/lib/gerar-relatorio-pdf";
 import { autorizarApi, registrarAuditoria } from "@/lib/auth";
 import { veTodasAsFichas } from "@/lib/escopo";
-import { comRetentativa } from "@/lib/db-retry";
-import { classificarFalha, respostaErro } from "@/lib/respostas-api";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,34 +15,43 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const periodo = resolverPeriodo(searchParams.get("de"), searchParams.get("ate"));
   if (!periodo) {
-    return respostaErro(req, 400, "Período inválido",
-      "Informe datas válidas, com a data inicial anterior à final.", "PERIODO");
+    return NextResponse.json(
+      { erro: "Período inválido. Informe datas válidas e uma data inicial anterior à final." },
+      { status: 400 },
+    );
   }
 
   const tipoRaw = searchParams.get("tipo") || "completo";
   if (!Object.prototype.hasOwnProperty.call(TIPOS_RELATORIO, tipoRaw)) {
-    return respostaErro(req, 400, "Tipo de relatório inválido",
-      "Escolha um dos relatórios disponíveis na tela de Gerência.", "TIPO");
+    return NextResponse.json(
+      { erro: "Tipo de relatório inválido." },
+      { status: 400 },
+    );
   }
   const tipo = tipoRaw as TipoRelatorio;
   // Relatórios com dados pessoais exigem acesso às fichas de toda a equipe.
   if ((tipo === "completo" || tipo === "fichas") && !veTodasAsFichas(auth.usuario)) {
-    return respostaErro(req, 403, "Acesso restrito",
-      "Relatórios com dados pessoais exigem permissão para ver as fichas de toda a equipe.", "PERMISSAO");
+    return NextResponse.json(
+      { erro: "Relatórios nominais exigem acesso às fichas de toda a equipe.", codigo: "PERMISSAO" },
+      { status: 403 },
+    );
   }
   const baixar = searchParams.get("baixar") === "1";
 
   try {
-    // Nova tentativa automática: o banco pode estar acordando da hibernação.
-    const dados = await comRetentativa(() => carregarDadosRelatorio(periodo));
+    // Uma repetição cobre a retomada do Neon após inatividade (falha transitória comum).
+    const dados = await carregarDadosRelatorioComRepeticao(periodo);
 
     // Relatórios nominais paginam por ficha: sem limite, um intervalo muito longo
     // prende o servidor. O CSV cobre volumes grandes sem custo proporcional.
     const LIMITE_FICHAS_PDF = 1500;
     if (tipo !== "indicadores" && dados.fichas.length > LIMITE_FICHAS_PDF) {
-      return respostaErro(req, 413, "Período grande demais para este relatório",
-        `São ${dados.fichas.length.toLocaleString("pt-BR")} fichas no intervalo. Reduza o período ou use a planilha CSV.`,
-        "VOLUME");
+      return NextResponse.json(
+        {
+          erro: `O período selecionado tem ${dados.fichas.length.toLocaleString("pt-BR")} fichas e o PDF nominal ficaria muito lento. Reduza o intervalo ou exporte a planilha CSV.`,
+        },
+        { status: 413 },
+      );
     }
 
     const pdf = await gerarRelatorioPdf(dados, tipo);
@@ -64,9 +71,16 @@ export async function GET(req: Request) {
       },
     });
   } catch (error) {
-    // Log completo no servidor; para o usuário, a causa provável em português.
-    console.error(`Erro ao emitir relatório PDF (tipo=${tipo}, ${periodo.de}..${periodo.ate}):`, error);
-    const f = classificarFalha(error);
-    return respostaErro(req, f.status, f.mensagem, f.detalhe, f.codigo);
+    console.error(`Erro ao emitir relatório PDF (${tipo} ${periodo.de}..${periodo.ate} por ${auth.usuario.login}):`, error);
+    if (ehErroConexao(error)) {
+      return NextResponse.json(
+        { erro: "Não foi possível conectar ao banco de dados. Aguarde alguns segundos e tente novamente.", codigo: "BANCO" },
+        { status: 503 },
+      );
+    }
+    return NextResponse.json(
+      { erro: "Não foi possível gerar o relatório. Tente novamente.", codigo: "GERACAO" },
+      { status: 500 },
+    );
   }
 }

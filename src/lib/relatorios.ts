@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, gte, lte } from "drizzle-orm";
 import { db } from "@/db";
-import { atendimentos, evolucoes, veiculoRegistros } from "@/db/schema";
-import type { Atendimento, Evolucao, VeiculoRegistro } from "@/db/schema";
+import { atendimentos, evolucoes, veiculoRegistros, veiculos } from "@/db/schema";
+import type { Atendimento, Evolucao, Veiculo, VeiculoRegistro } from "@/db/schema";
 import { USO_DROGAS } from "@/lib/constants";
 import { dashISO, fmtMesAno, hojeISO, labelSN } from "@/lib/format";
 import type { Periodo } from "@/lib/report-config";
@@ -29,6 +29,7 @@ export type DadosRelatorio = {
   fichas: Atendimento[];
   veiculos: VeiculoRegistro[];
   evolucoes: Evolucao[];
+  frota: Veiculo[];
 };
 
 export async function carregarDadosRelatorio(periodo: Periodo): Promise<DadosRelatorio> {
@@ -37,7 +38,7 @@ export async function carregarDadosRelatorio(periodo: Periodo): Promise<DadosRel
     gte(atendimentos.dataAtendimento, de),
     lte(atendimentos.dataAtendimento, ate),
   );
-  const [fichas, veiculos, evolucoesDoPeriodo] = await Promise.all([
+  const [fichas, registros, evolucoesDoPeriodo, frota] = await Promise.all([
     db.select().from(atendimentos).where(filtroFichas).orderBy(desc(atendimentos.dataAtendimento), desc(atendimentos.numero)),
     db.select().from(veiculoRegistros)
       .where(and(gte(veiculoRegistros.data, de), lte(veiculoRegistros.data, ate)))
@@ -46,8 +47,29 @@ export async function carregarDadosRelatorio(periodo: Periodo): Promise<DadosRel
       .innerJoin(atendimentos, eq(evolucoes.atendimentoId, atendimentos.id))
       .where(filtroFichas)
       .orderBy(asc(evolucoes.createdAt)),
+    db.select().from(veiculos).orderBy(desc(veiculos.ativo), asc(veiculos.modelo), asc(veiculos.placa)),
   ]);
-  return { periodo, fichas, veiculos, evolucoes: evolucoesDoPeriodo.map((r) => r.registro) };
+  return { periodo, fichas, veiculos: registros, evolucoes: evolucoesDoPeriodo.map((r) => r.registro), frota };
+}
+
+/** Erros de rede/banco que valem uma segunda tentativa (ex.: Neon retomando após inatividade). */
+export function ehErroConexao(erro: unknown): boolean {
+  const codigo = (erro as { code?: unknown })?.code;
+  const texto = `${typeof codigo === "string" ? codigo : ""} ${erro instanceof Error ? erro.message : String(erro)}`.toLowerCase();
+  return ["econn", "enotfound", "eai_again", "etimedout", "econnreset", "epipe", "timeout", "terminated", "too many clients", "connection", "connect", "socket", "pool"].some((p) => texto.includes(p));
+}
+
+const ESPERA_REPETICAO_MS = 1500;
+
+/** Carrega os dados do relatório, repetindo uma vez após falha transitória de conexão. */
+export async function carregarDadosRelatorioComRepeticao(periodo: Periodo): Promise<DadosRelatorio> {
+  try {
+    return await carregarDadosRelatorio(periodo);
+  } catch (erro) {
+    if (!ehErroConexao(erro)) throw erro;
+    await new Promise((r) => setTimeout(r, ESPERA_REPETICAO_MS));
+    return carregarDadosRelatorio(periodo);
+  }
 }
 
 function ordenar(mapa: Map<string, number>): Distribuicao[] {

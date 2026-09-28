@@ -9,8 +9,6 @@ import { db } from "@/db";
 import { auditoria, sessoes, usuarios } from "@/db/schema";
 import { hashSenha } from "@/lib/senha";
 import { temPermissao, type RequisitoAcesso } from "@/lib/permissoes";
-import { comRetentativa } from "@/lib/db-retry";
-import { respostaErro } from "@/lib/respostas-api";
 
 export const COOKIE_SESSAO = "pf_sessao";
 /** Sessão comum: termina ao fechar o navegador e expira no máximo em 12 horas. */
@@ -44,9 +42,7 @@ export const obterUsuarioAtual = cache(async (): Promise<UsuarioSessao | null> =
   const token = jar.get(COOKIE_SESSAO)?.value;
   if (!token || token.length > 128) return null;
 
-  // Nova tentativa automática: o banco pode estar acordando da hibernação e
-  // uma falha momentânea não deve desconectar quem está trabalhando.
-  const [linha] = await comRetentativa(() => db
+  const [linha] = await db
     .select({
       sessaoId: sessoes.id,
       id: usuarios.id,
@@ -66,7 +62,7 @@ export const obterUsuarioAtual = cache(async (): Promise<UsuarioSessao | null> =
       // Acesso temporário: vale até o fim do dia informado (horário de Brasília).
       or(isNull(usuarios.acessoAte), gte(usuarios.acessoAte, hojeISO())),
     ))
-    .limit(1));
+    .limit(1);
 
   if (!linha) return null;
   return { ...linha, papel: linha.papel === "admin" ? "admin" : "usuario" };
@@ -95,9 +91,8 @@ type ResultadoApi =
   | { ok: true; usuario: UsuarioSessao }
   | { ok: false; resposta: NextResponse };
 
-function negar(req: Request, status: number, mensagem: string, detalhe: string, codigo: string): ResultadoApi {
-  // Links abertos em nova aba (ex.: imprimir relatório) recebem página legível.
-  return { ok: false, resposta: respostaErro(req, status, mensagem, detalhe, codigo) };
+function negar(status: number, erro: string, codigo: string): ResultadoApi {
+  return { ok: false, resposta: NextResponse.json({ erro, codigo }, { status }) };
 }
 
 /** Bloqueia requisições de escrita vindas de outros sites (proteção CSRF). */
@@ -119,33 +114,14 @@ export async function autorizarApi(
   requisito?: RequisitoAcesso,
   opcoes: { permitirTrocaPendente?: boolean } = {},
 ): Promise<ResultadoApi> {
-  if (!origemConfiavel(req)) {
-    return negar(req, 403, "Origem da requisição não permitida",
-      "A solicitação veio de outro site. Acesse pelo endereço oficial do sistema.", "ORIGEM");
-  }
-
-  let usuario: UsuarioSessao | null;
-  try {
-    usuario = await obterUsuarioAtual();
-  } catch (erro) {
-    // Banco fora do ar: informa a causa em vez de estourar um erro interno,
-    // e nunca trata indisponibilidade como "sessão expirada".
-    console.error("Falha ao validar a sessão (banco indisponível):", erro);
-    return negar(req, 503, "O banco de dados não respondeu",
-      "O servidor do banco hiberna quando fica sem uso e leva alguns segundos para acordar. Aguarde um instante e tente novamente.",
-      "BANCO_INDISPONIVEL");
-  }
-  if (!usuario) {
-    return negar(req, 401, "Sessão expirada",
-      "Entre novamente para continuar.", "SESSAO");
-  }
+  if (!origemConfiavel(req)) return negar(403, "Origem da requisição não permitida.", "ORIGEM");
+  const usuario = await obterUsuarioAtual();
+  if (!usuario) return negar(401, "Sua sessão expirou. Entre novamente.", "SESSAO");
   if (usuario.deveTrocarSenha && !opcoes.permitirTrocaPendente) {
-    return negar(req, 403, "Defina uma nova senha",
-      "Antes de continuar, cadastre a sua senha pessoal no sistema.", "TROCAR_SENHA");
+    return negar(403, "Defina uma nova senha antes de continuar.", "TROCAR_SENHA");
   }
   if (requisito && !temPermissao(usuario, requisito)) {
-    return negar(req, 403, "Acesso restrito",
-      "Você não tem permissão para esta ação. Fale com o administrador do sistema.", "PERMISSAO");
+    return negar(403, "Você não tem permissão para esta ação. Fale com o administrador.", "PERMISSAO");
   }
   return { ok: true, usuario };
 }

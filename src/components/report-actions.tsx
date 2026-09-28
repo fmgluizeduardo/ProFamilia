@@ -4,8 +4,10 @@ import { useState } from "react";
 import {
   ChartNoAxesCombined,
   Download,
+  FileSpreadsheet,
   FileStack,
   FileText,
+  Loader2,
   LockKeyhole,
   Printer,
   Truck,
@@ -27,13 +29,10 @@ const NOMINAIS: TipoRelatorio[] = ["completo", "fichas"];
 export function ReportActions({
   periodo,
   totalFichas,
-  totalPercursos,
   podeNominais,
 }: {
   periodo: Periodo;
   totalFichas: number;
-  /** Saídas de veículo no período (para avisar quando o relatório sairá vazio). */
-  totalPercursos: number;
   /** Relatórios com dados pessoais exigem acesso às fichas de toda a equipe. */
   podeNominais: boolean;
 }) {
@@ -43,6 +42,61 @@ export function ReportActions({
     (bloqueiaNominais && t !== "indicadores") || (!podeNominais && NOMINAIS.includes(t));
   const bloqueado = indisponivel(tipo);
   const base = `/api/gerencia/relatorio?de=${periodo.de}&ate=${periodo.ate}&tipo=${tipo}`;
+  const [gerando, setGerando] = useState<null | "baixar" | "imprimir">(null);
+  const [erroAcao, setErroAcao] = useState<string | null>(null);
+
+  // Busca o PDF via fetch para tratar erros na tela (em vez de abrir JSON cru
+  // numa nova aba) e mostrar progresso durante a geração.
+  async function obterPdf(baixar: boolean) {
+    if (bloqueado || gerando) return;
+    setGerando(baixar ? "baixar" : "imprimir");
+    setErroAcao(null);
+    try {
+      const res = await fetch(`${base}${baixar ? "&baixar=1" : ""}`);
+      if (res.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
+      if (!res.ok) {
+        const j = await res.json().catch(() => null);
+        throw new Error(
+          typeof j?.erro === "string" ? j.erro : "Não foi possível gerar o relatório. Tente novamente.",
+        );
+      }
+      const blob = await res.blob();
+      if (!blob.size || !blob.type.includes("pdf")) {
+        throw new Error("O arquivo recebido está vazio. Tente novamente.");
+      }
+      const url = URL.createObjectURL(blob);
+      const nome = `profamilia-${tipo}-${periodo.de}-a-${periodo.ate}.pdf`;
+      if (baixar) {
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = nome;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 30_000);
+      } else {
+        const win = window.open(url, "_blank", "noopener");
+        if (!win) {
+          // Pop-up bloqueado: baixa o arquivo para não deixar o usuário sem saída.
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = nome;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setErroAcao("O navegador bloqueou a nova aba, então o PDF foi baixado. Abra o arquivo e use Imprimir.");
+        }
+        setTimeout(() => URL.revokeObjectURL(url), 120_000);
+      }
+    } catch (e) {
+      setErroAcao(e instanceof Error ? e.message : "Falha de conexão. Confira a internet e tente novamente.");
+    } finally {
+      setGerando(null);
+    }
+  }
 
   return (
     <section className="animate-rise overflow-hidden rounded-2xl border border-ink-100/80 bg-card shadow-card">
@@ -101,12 +155,6 @@ export function ReportActions({
           {TIPOS_RELATORIO[tipo].descricao}
         </p>
 
-        {(tipo === "veiculos" ? totalPercursos === 0 : totalFichas === 0) && (
-          <div className="mt-3 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2.5 text-[0.75rem] leading-relaxed text-brand-900">
-            Não há {tipo === "veiculos" ? "saídas de veículo" : "fichas"} neste período. O documento será
-            emitido com o cabeçalho e as seções vazias — escolha outro período para ver dados preenchidos.
-          </div>
-        )}
         {!podeNominais && (
           <div className="mt-3 rounded-lg border border-ink-200 bg-ink-50 px-3 py-2.5 text-[0.75rem] leading-relaxed text-ink-600">
             Relatórios com dados pessoais (Completo e Prontuários) exigem acesso às fichas de toda a equipe.
@@ -122,35 +170,38 @@ export function ReportActions({
         )}
 
         <div className="mt-4 flex flex-col gap-2.5 sm:flex-row">
-          <a
-            aria-disabled={bloqueado}
-            href={bloqueado ? undefined : `${base}&baixar=1`}
-            onClick={(e) => { if (bloqueado) e.preventDefault(); }}
-            className={`inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-xl px-4 text-[0.84rem] font-bold shadow-card transition-all active:scale-[0.98] ${
+          <button
+            type="button"
+            disabled={bloqueado || gerando !== null}
+            onClick={() => void obterPdf(true)}
+            className={`inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-xl px-4 text-[0.84rem] font-bold shadow-card transition-all active:scale-[0.98] disabled:cursor-not-allowed ${
               bloqueado
-                ? "cursor-not-allowed bg-ink-200 text-ink-400"
-                : "bg-brand-600 text-white hover:bg-brand-700"
+                ? "bg-ink-200 text-ink-400"
+                : "bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-70"
             }`}
           >
-            <Download className="h-4 w-4" />
-            Exportar PDF
-          </a>
-          <a
-            aria-disabled={bloqueado}
-            href={bloqueado ? undefined : base}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => { if (bloqueado) e.preventDefault(); }}
-            className={`inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-xl border px-4 text-[0.84rem] font-bold shadow-card transition-all active:scale-[0.98] ${
+            {gerando === "baixar" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            {gerando === "baixar" ? "Gerando…" : "Exportar PDF"}
+          </button>
+          <button
+            type="button"
+            disabled={bloqueado || gerando !== null}
+            onClick={() => void obterPdf(false)}
+            className={`inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-xl border px-4 text-[0.84rem] font-bold shadow-card transition-all active:scale-[0.98] disabled:cursor-not-allowed ${
               bloqueado
-                ? "cursor-not-allowed border-ink-200 bg-ink-50 text-ink-400"
-                : "border-ink-200 bg-white text-ink-800 hover:border-ink-300 hover:bg-ink-50"
+                ? "border-ink-200 bg-ink-50 text-ink-400"
+                : "border-ink-200 bg-white text-ink-800 hover:border-ink-300 hover:bg-ink-50 disabled:opacity-70"
             }`}
           >
-            <Printer className="h-4 w-4" />
-            Abrir para imprimir
-          </a>
+            {gerando === "imprimir" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
+            {gerando === "imprimir" ? "Gerando…" : "Abrir para imprimir"}
+          </button>
         </div>
+        {erroAcao && (
+          <p role="alert" className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5 text-[0.78rem] font-semibold text-red-700">
+            {erroAcao}
+          </p>
+        )}
         <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-[0.69rem] leading-relaxed text-ink-400">
           <span>
             A opção de impressão abre o PDF diagramado. No visualizador, toque em Imprimir.
@@ -164,5 +215,59 @@ export function ReportActions({
         </div>
       </div>
     </section>
+  );
+}
+
+/** Botão da planilha CSV com o mesmo tratamento de erros dos PDFs. */
+export function BotaoCsv({ href }: { href: string }) {
+  const [estado, setEstado] = useState<"ok" | "carregando" | "erro">("ok");
+  const [erro, setErro] = useState<string | null>(null);
+
+  async function baixar() {
+    if (estado === "carregando") return;
+    setEstado("carregando");
+    setErro(null);
+    try {
+      const res = await fetch(href);
+      if (res.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
+      if (!res.ok) {
+        const j = await res.json().catch(() => null);
+        throw new Error(typeof j?.erro === "string" ? j.erro : "Não foi possível exportar a planilha.");
+      }
+      const blob = await res.blob();
+      const nome = res.headers.get("Content-Disposition")?.match(/filename="([^"]+)"/)?.[1] ?? "atendimentos.csv";
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = nome;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 30_000);
+      setEstado("ok");
+    } catch (e) {
+      setEstado("erro");
+      setErro(e instanceof Error ? e.message : "Falha de conexão. Confira a internet e tente novamente.");
+    }
+  }
+
+  return (
+    <span className="inline-flex flex-col items-end gap-1">
+      <button
+        type="button"
+        onClick={() => void baixar()}
+        disabled={estado === "carregando"}
+        className="inline-flex items-center gap-1.5 rounded-lg border border-ink-200 bg-white px-3 py-2 text-[0.74rem] font-bold text-ink-600 transition-colors hover:border-ink-300 disabled:opacity-60"
+      >
+        {estado === "carregando" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileSpreadsheet className="h-3.5 w-3.5" />}
+        Exportar CSV
+      </button>
+      {estado === "erro" && erro && (
+        <span role="alert" className="max-w-64 text-right text-[0.7rem] font-semibold text-red-600">{erro}</span>
+      )}
+    </span>
   );
 }

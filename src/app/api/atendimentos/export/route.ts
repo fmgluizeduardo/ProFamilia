@@ -7,8 +7,7 @@ import { dataReal } from "@/lib/validacoes";
 import { NextResponse } from "next/server";
 import { autorizarApi, registrarAuditoria } from "@/lib/auth";
 import { veTodasAsFichas } from "@/lib/escopo";
-import { comRetentativa } from "@/lib/db-retry";
-import { classificarFalha, respostaErro } from "@/lib/respostas-api";
+import { ehErroConexao } from "@/lib/relatorios";
 
 function csvCampo(v: string | number | null | undefined): string {
   if (v === null || v === undefined || v === "") return "";
@@ -22,8 +21,10 @@ export async function GET(req: Request) {
   if (!auth.ok) return auth.resposta;
   // A planilha é nominal (todas as fichas): exige acesso às fichas de toda a equipe.
   if (!veTodasAsFichas(auth.usuario)) {
-    return respostaErro(req, 403, "Acesso restrito",
-      "A exportação nominal exige permissão para ver as fichas de toda a equipe.", "PERMISSAO");
+    return NextResponse.json(
+      { erro: "A exportação nominal exige acesso às fichas de toda a equipe.", codigo: "PERMISSAO" },
+      { status: 403 },
+    );
   }
   const url = new URL(req.url);
   const de = url.searchParams.get("de");
@@ -37,18 +38,35 @@ export async function GET(req: Request) {
     condicoes.push(lte(atendimentos.dataAtendimento, ate));
   }
 
-  let fichas;
+  const buscar = () =>
+    db
+      .select()
+      .from(atendimentos)
+      .where(condicoes.length ? and(...condicoes) : undefined)
+      .orderBy(desc(atendimentos.numero));
+
+  let fichas: Awaited<ReturnType<typeof buscar>>;
   try {
-    // Nova tentativa automática: o banco pode estar acordando da hibernação.
-    fichas = await comRetentativa(() =>
-      db.select().from(atendimentos)
-        .where(condicoes.length ? and(...condicoes) : undefined)
-        .orderBy(desc(atendimentos.numero)),
-    );
-  } catch (error) {
-    console.error("Erro ao exportar CSV:", error);
-    const f = classificarFalha(error);
-    return respostaErro(req, f.status, f.mensagem.replace("o relatório", "a planilha"), f.detalhe, f.codigo);
+    fichas = await buscar();
+  } catch (primeiroErro) {
+    // Uma repetição cobre a retomada do Neon após inatividade.
+    if (!ehErroConexao(primeiroErro)) {
+      console.error(`Erro ao exportar CSV (${de ?? "?"}..${ate ?? "?"} por ${auth.usuario.login}):`, primeiroErro);
+      return NextResponse.json(
+        { erro: "Não foi possível exportar a planilha. Tente novamente.", codigo: "GERACAO" },
+        { status: 500 },
+      );
+    }
+    await new Promise((r) => setTimeout(r, 1500));
+    try {
+      fichas = await buscar();
+    } catch (segundoErro) {
+      console.error(`Erro ao exportar CSV (${de ?? "?"}..${ate ?? "?"} por ${auth.usuario.login}):`, segundoErro);
+      return NextResponse.json(
+        { erro: "Não foi possível conectar ao banco de dados. Aguarde alguns segundos e tente novamente.", codigo: "BANCO" },
+        { status: 503 },
+      );
+    }
   }
 
   const CABECALHO = [
