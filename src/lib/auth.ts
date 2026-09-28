@@ -114,14 +114,14 @@ export async function autorizarApi(
   requisito?: RequisitoAcesso,
   opcoes: { permitirTrocaPendente?: boolean } = {},
 ): Promise<ResultadoApi> {
-  if (!origemConfiavel(req)) return negar(403, "Origem da requisição não permitida.", "ORIGEM");
+  if (!origemConfiavel(req)) return negar(403, "Origem da requisição não permitida.", "AUT-004");
   const usuario = await obterUsuarioAtual();
-  if (!usuario) return negar(401, "Sua sessão expirou. Entre novamente.", "SESSAO");
+  if (!usuario) return negar(401, "Sua sessão expirou. Entre novamente.", "AUT-001");
   if (usuario.deveTrocarSenha && !opcoes.permitirTrocaPendente) {
-    return negar(403, "Defina uma nova senha antes de continuar.", "TROCAR_SENHA");
+    return negar(403, "Defina uma nova senha antes de continuar.", "AUT-002");
   }
   if (requisito && !temPermissao(usuario, requisito)) {
-    return negar(403, "Você não tem permissão para esta ação. Fale com o administrador.", "PERMISSAO");
+    return negar(403, "Você não tem permissão para esta ação. Fale com o administrador.", "AUT-003");
   }
   return { ok: true, usuario };
 }

@@ -5,15 +5,17 @@ import { veiculos } from "@/db/schema";
 import { autorizarApi, registrarAuditoria } from "@/lib/auth";
 import { rotuloVeiculo } from "@/lib/frota";
 import { normalizarVeiculo } from "@/lib/frota-dados";
+import { falhaInterna, rota } from "@/lib/erros-servidor";
 
 /** Cadastra um novo veículo na frota. */
-export async function POST(req: Request) {
+export const POST = rota(async function POST(req: Request) {
   const auth = await autorizarApi(req, "frota.cadastrar");
   if (!auth.ok) return auth.resposta;
 
   let body: Record<string, unknown>;
   try {
     body = await req.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("Corpo não é um objeto JSON.");
   } catch {
     return NextResponse.json({ erro: "Requisição inválida." }, { status: 400 });
   }
@@ -38,7 +40,6 @@ export async function POST(req: Request) {
     });
     return NextResponse.json({ id: criado.id }, { status: 201 });
   } catch (erro) {
-    console.error("Erro ao cadastrar veículo:", erro);
-    return NextResponse.json({ erro: "Não foi possível cadastrar o veículo." }, { status: 500 });
+    return falhaInterna(req, erro, { mensagem: "Não foi possível cadastrar o veículo." });
   }
-}
+});

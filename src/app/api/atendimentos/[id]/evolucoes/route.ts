@@ -6,8 +6,9 @@ import { autorizarApi, registrarAuditoria } from "@/lib/auth";
 import { numeroAtendimento } from "@/lib/format";
 import { texto, uuidValido } from "@/lib/validacoes";
 import { fichaNoEscopo } from "@/lib/escopo";
+import { falhaInterna, rota } from "@/lib/erros-servidor";
 
-export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export const POST = rota(async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await autorizarApi(req, "evolucoes.criar");
   if (!auth.ok) return auth.resposta;
   const { usuario } = auth;
@@ -18,6 +19,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   let body: Record<string, unknown>;
   try {
     body = await req.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("Corpo não é um objeto JSON.");
   } catch {
     return NextResponse.json({ erro: "Corpo inválido." }, { status: 400 });
   }
@@ -54,7 +56,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     });
     return NextResponse.json(criada, { status: 201 });
   } catch (erro) {
-    console.error("Erro ao registrar evolução:", erro);
-    return NextResponse.json({ erro: "Não foi possível registrar a evolução. Tente novamente." }, { status: 500 });
+    return falhaInterna(req, erro, { mensagem: "Não foi possível registrar a evolução. Tente novamente." });
   }
-}
+});

@@ -7,6 +7,7 @@ import { normalizarFicha } from "@/lib/ficha-dados";
 import { fichaNoEscopo } from "@/lib/escopo";
 import { numeroAtendimento } from "@/lib/format";
 import { uuidValido } from "@/lib/validacoes";
+import { falhaInterna, rota } from "@/lib/erros-servidor";
 
 type Contexto = { params: Promise<{ id: string }> };
 
@@ -26,7 +27,7 @@ async function buscar(id: string, usuario: Parameters<typeof fichaNoEscopo>[0]) 
 }
 
 /** Edição completa da ficha (mesma validação do cadastro). */
-export async function PUT(req: Request, { params }: Contexto) {
+export const PUT = rota(async function PUT(req: Request, { params }: Contexto) {
   const auth = await autorizarApi(req, "fichas.editar");
   if (!auth.ok) return auth.resposta;
   const { id } = await params;
@@ -38,6 +39,7 @@ export async function PUT(req: Request, { params }: Contexto) {
   let body: Record<string, unknown>;
   try {
     body = await req.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("Corpo não é um objeto JSON.");
   } catch {
     return NextResponse.json({ erro: "Corpo da requisição inválido." }, { status: 400 });
   }
@@ -57,13 +59,12 @@ export async function PUT(req: Request, { params }: Contexto) {
     });
     return NextResponse.json({ ok: true, id });
   } catch (e) {
-    console.error("Erro ao editar ficha:", e);
-    return NextResponse.json({ erro: "Não foi possível salvar as alterações." }, { status: 500 });
+    return falhaInterna(req, e, { mensagem: "Não foi possível salvar as alterações." });
   }
-}
+});
 
 /** Exclusão definitiva da ficha e, em cascata, de suas evoluções. */
-export async function DELETE(req: Request, { params }: Contexto) {
+export const DELETE = rota(async function DELETE(req: Request, { params }: Contexto) {
   const auth = await autorizarApi(req, "fichas.excluir");
   if (!auth.ok) return auth.resposta;
   const { id } = await params;
@@ -81,7 +82,6 @@ export async function DELETE(req: Request, { params }: Contexto) {
     });
     return NextResponse.json({ ok: true });
   } catch (e) {
-    console.error("Erro ao excluir ficha:", e);
-    return NextResponse.json({ erro: "Não foi possível excluir a ficha." }, { status: 500 });
+    return falhaInterna(req, e, { mensagem: "Não foi possível excluir a ficha." });
   }
-}
+});

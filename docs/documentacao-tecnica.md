@@ -134,7 +134,7 @@ uma única rota aberta por veículo, evolução exige ficha existente.
 - **Paginação própria:** quebra de linha manual + `bufferPages` para nunca
   criar página sem cabeçalho; textos longos (evoluções) continuam na página
   seguinte marcadas como “continuação”.
-- **Limites:** PDFs nominais bloqueados acima de 1.500 fichas no período
+- **Limites:** PDFs nominais bloqueados acima de 250 fichas no período
   (interface + API retornam 413 orientando CSV/período menor). Medição de
   referência: ~10 ms/ficha.
 - **Confidencialidade:** `Cache-Control: private, no-store`; tipo
@@ -294,3 +294,41 @@ Novas ações auditadas: `frota.criado|editado|desativado|reativado`,
 **Ambiente de preview**: a plataforma reescreve o `.env` (banco local) ao reiniciar;
 o `.env.local` (ignorado pelo Git) aponta o preview para o Neon e tem precedência.
 `drizzle-kit` e o seed leem apenas o `.env`, evitando alterar a produção por engano.
+
+## 12. Tratamento de erros e códigos (versão 3)
+
+**Catálogo** (`src/lib/erros-catalogo.ts`, seguro para o cliente): códigos `ÁREA-NNN`
+(AUT, VAL, REG, BD, REL, SIS) com título, orientação e status HTTP. Toda resposta de erro
+das APIs segue `{ erro, codigo, titulo, referencia?, tecnico? }`.
+
+**Servidor** (`src/lib/erros-servidor.ts`):
+- `rota(handler)` envolve todos os handlers de `src/app/api/**` (exceto `health`). Exceção
+  não tratada → `falhaInterna` (SIS-001 com referência). Resposta de erro sem código recebe
+  um pelo status: 400 VAL-002, 401 AUT-001, 403 AUT-003, 404 REG-001, 409 REG-002,
+  413 REL-002, 422 VAL-001, 429 AUT-005, 503 BD-001.
+- `falhaInterna(req, erro, { codigo, mensagem })`: gera referência de 8 caracteres, grava em
+  `erros_sistema` e no log `[PF-ERRO]` da hospedagem. Erro de conexão (inclusive embrulhado
+  pelo Drizzle em `cause`) → **BD-001**; tabela/coluna inexistente (42P01/42703) → **BD-003**.
+  O detalhe técnico é enviado apenas a administradores.
+- `erroApi(req, codigo, mensagem)` para erros previstos (validação, permissão, limites).
+- URL de API aberta diretamente no navegador (`Sec-Fetch-Mode: navigate`) recebe uma
+  **página HTML** amigável (código, referência, “Copiar detalhes”) em vez de JSON.
+
+**Páginas**: `error.tsx` e `global-error.tsx` usam `TelaErro` (SIS-005, com o *digest* do
+Next.js como referência). `src/instrumentation.ts` (`onRequestError`) grava falhas de
+renderização em `erros_sistema` com o mesmo digest.
+
+**Cliente** (`src/lib/api-cliente.ts`): `chamarApi` e `baixarArquivo` lançam `ErroApi`
+(código, referência, orientação). Falha de rede → SIS-002; resposta fora do padrão da
+hospedagem → SIS-003/SIS-004/REL-002 (usa os cabeçalhos `x-vercel-error`/`x-vercel-id`).
+O componente `AvisoErro` exibe o aviso padrão em todos os formulários.
+
+**Registro** (`erros_sistema`, migração `0003`): referência, código, mensagem, detalhe
+técnico, pilha, rota, método, usuário, IP e user-agent. Tela `/usuarios/erros`
+(administrador) com busca por referência, código, rota ou usuário.
+
+**Relatórios PDF**: as fontes DejaVu ficam embutidas em base64 (`src/lib/fontes-pdf.ts`,
+gerado por `node scripts/gerar-fontes-pdf.mjs` a partir de `assets/fonts`). O PDF não lê
+mais nenhum arquivo em disco, eliminando a dependência do rastreamento de arquivos da
+Vercel (causa da falha em produção). Limites alinhados à hospedagem: PDF nominal até 250
+fichas e arquivos até 4,2 MB (a Vercel recusa respostas acima de 4,5 MB) → REL-002.

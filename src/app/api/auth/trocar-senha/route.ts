@@ -5,8 +5,9 @@ import { usuarios } from "@/db/schema";
 import { autorizarApi, encerrarSessoesDoUsuario, registrarAuditoria } from "@/lib/auth";
 import { senhaForte } from "@/lib/permissoes";
 import { hashSenha, verificarSenha } from "@/lib/senha";
+import { rota } from "@/lib/erros-servidor";
 
-export async function POST(req: Request) {
+export const POST = rota(async function POST(req: Request) {
   const auth = await autorizarApi(req, undefined, { permitirTrocaPendente: true });
   if (!auth.ok) return auth.resposta;
   const { usuario } = auth;
@@ -14,6 +15,7 @@ export async function POST(req: Request) {
   let body: Record<string, unknown>;
   try {
     body = await req.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("Corpo não é um objeto JSON.");
   } catch {
     return NextResponse.json({ erro: "Requisição inválida." }, { status: 400 });
   }
@@ -46,4 +48,4 @@ export async function POST(req: Request) {
   await registrarAuditoria({ usuario, acao: "senha.alterada", entidade: "usuario", entidadeId: usuario.id, req });
 
   return NextResponse.json({ ok: true });
-}
+});

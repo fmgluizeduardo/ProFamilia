@@ -1,12 +1,7 @@
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {
-  // Garante que as fontes TTF do relatório PDF acompanhem a função
-  // serverless na Vercel (o rastreador de arquivos não detecta sozinho
-  // leituras dinâmicas via fs).
-  outputFileTracingIncludes: {
-    "/api/gerencia/relatorio": ["./assets/fonts/*.ttf"],
-  },
-};
+// As fontes do relatório PDF ficam embutidas no código (src/lib/fontes-pdf.ts),
+// então nenhuma inclusão manual de arquivos é necessária na hospedagem.
+const nextConfig: NextConfig = {};
 
 export default nextConfig;

@@ -4,10 +4,12 @@ import { atendimentos } from "@/db/schema";
 import { fmtData, labelSN, moedaBR } from "@/lib/format";
 import { USO_DROGAS } from "@/lib/constants";
 import { dataReal } from "@/lib/validacoes";
-import { NextResponse } from "next/server";
 import { autorizarApi, registrarAuditoria } from "@/lib/auth";
 import { veTodasAsFichas } from "@/lib/escopo";
-import { ehErroConexao } from "@/lib/relatorios";
+import { ehErroConexao, erroApi, falhaInterna, rota } from "@/lib/erros-servidor";
+import { LIMITE_BYTES_RESPOSTA } from "@/lib/report-config";
+
+export const dynamic = "force-dynamic";
 
 function csvCampo(v: string | number | null | undefined): string {
   if (v === null || v === undefined || v === "") return "";
@@ -16,27 +18,21 @@ function csvCampo(v: string | number | null | undefined): string {
   return s;
 }
 
-export async function GET(req: Request) {
+export const GET = rota(async function GET(req: Request) {
   const auth = await autorizarApi(req, "relatorios.exportar");
   if (!auth.ok) return auth.resposta;
   // A planilha é nominal (todas as fichas): exige acesso às fichas de toda a equipe.
   if (!veTodasAsFichas(auth.usuario)) {
-    return NextResponse.json(
-      { erro: "A exportação nominal exige acesso às fichas de toda a equipe.", codigo: "PERMISSAO" },
-      { status: 403 },
-    );
+    return erroApi(req, "AUT-003", "A exportação nominal exige acesso às fichas de toda a equipe.");
   }
+
   const url = new URL(req.url);
   const de = url.searchParams.get("de");
   const ate = url.searchParams.get("ate");
 
   const condicoes: SQL[] = [];
-  if (dataReal(de)) {
-    condicoes.push(gte(atendimentos.dataAtendimento, de));
-  }
-  if (dataReal(ate)) {
-    condicoes.push(lte(atendimentos.dataAtendimento, ate));
-  }
+  if (dataReal(de)) condicoes.push(gte(atendimentos.dataAtendimento, de));
+  if (dataReal(ate)) condicoes.push(lte(atendimentos.dataAtendimento, ate));
 
   const buscar = () =>
     db
@@ -49,23 +45,15 @@ export async function GET(req: Request) {
   try {
     fichas = await buscar();
   } catch (primeiroErro) {
-    // Uma repetição cobre a retomada do Neon após inatividade.
     if (!ehErroConexao(primeiroErro)) {
-      console.error(`Erro ao exportar CSV (${de ?? "?"}..${ate ?? "?"} por ${auth.usuario.login}):`, primeiroErro);
-      return NextResponse.json(
-        { erro: "Não foi possível exportar a planilha. Tente novamente.", codigo: "GERACAO" },
-        { status: 500 },
-      );
+      return falhaInterna(req, primeiroErro, { codigo: "REL-004", mensagem: "Não foi possível ler as fichas para a planilha." });
     }
+    // Uma repetição cobre a retomada do banco após inatividade.
     await new Promise((r) => setTimeout(r, 1500));
     try {
       fichas = await buscar();
     } catch (segundoErro) {
-      console.error(`Erro ao exportar CSV (${de ?? "?"}..${ate ?? "?"} por ${auth.usuario.login}):`, segundoErro);
-      return NextResponse.json(
-        { erro: "Não foi possível conectar ao banco de dados. Aguarde alguns segundos e tente novamente.", codigo: "BANCO" },
-        { status: 503 },
-      );
+      return falhaInterna(req, segundoErro, { codigo: "REL-004", mensagem: "Não foi possível ler as fichas para a planilha." });
     }
   }
 
@@ -86,8 +74,7 @@ export async function GET(req: Request) {
     "Responsável pelo Registro", "Cargo", "Registrada em",
   ];
 
-  const usoDrogasLabel = (v: string | null) =>
-    USO_DROGAS.find((u) => u.value === v)?.label ?? (v ?? "");
+  const usoDrogasLabel = (v: string | null) => USO_DROGAS.find((u) => u.value === v)?.label ?? (v ?? "");
 
   const linhas = fichas.map((f) =>
     [
@@ -150,10 +137,22 @@ export async function GET(req: Request) {
   );
 
   const csv = "\uFEFF" + CABECALHO.map(csvCampo).join(";") + "\r\n" + linhas.join("\r\n");
+  const bytes = Buffer.byteLength(csv, "utf8");
+  // A hospedagem recusa respostas acima de 4,5 MB.
+  if (bytes > LIMITE_BYTES_RESPOSTA) {
+    return erroApi(
+      req,
+      "REL-002",
+      `A planilha ficou com ${(bytes / 1024 / 1024).toFixed(1)} MB, acima do limite de envio de 4 MB. Reduza o período selecionado.`,
+    );
+  }
+
   const nomeArquivo = `atendimentos-profamilia${de ? `-${de}` : ""}${ate ? `-${ate}` : ""}.csv`;
   await registrarAuditoria({
-    usuario: auth.usuario, acao: "relatorio.csv",
-    detalhes: `${fichas.length} fichas · período ${de ?? "início"} a ${ate ?? "hoje"}`, req,
+    usuario: auth.usuario,
+    acao: "relatorio.csv",
+    detalhes: `${fichas.length} fichas · período ${de ?? "início"} a ${ate ?? "hoje"}`,
+    req,
   });
 
   return new Response(csv, {
@@ -163,4 +162,4 @@ export async function GET(req: Request) {
       "Cache-Control": "no-store",
     },
   });
-}
+});

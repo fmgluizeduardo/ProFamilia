@@ -7,9 +7,10 @@ import { rotuloVeiculo } from "@/lib/frota";
 import { normalizarVeiculo, percursoAberto } from "@/lib/frota-dados";
 import { descreverMudancas } from "@/lib/usuarios-admin";
 import { uuidValido } from "@/lib/validacoes";
+import { falhaInterna, rota } from "@/lib/erros-servidor";
 
 /** Edita os dados do veículo e/ou ativa/desativa. */
-export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export const PATCH = rota(async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await autorizarApi(req, "frota.editar");
   if (!auth.ok) return auth.resposta;
   const { id } = await params;
@@ -21,6 +22,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   let body: Record<string, unknown>;
   try {
     body = await req.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("Corpo não é um objeto JSON.");
   } catch {
     return NextResponse.json({ erro: "Requisição inválida." }, { status: 400 });
   }
@@ -82,7 +84,6 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     });
     return NextResponse.json({ ok: true });
   } catch (erro) {
-    console.error("Erro ao editar veículo:", erro);
-    return NextResponse.json({ erro: "Não foi possível salvar as alterações." }, { status: 500 });
+    return falhaInterna(req, erro, { mensagem: "Não foi possível salvar as alterações." });
   }
-}
+});

@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Pencil, X } from "lucide-react";
+import { chamarApi } from "@/lib/api-cliente";
+import { AvisoErro } from "@/components/aviso-erro";
 import { inputCls, labelCls } from "./veiculo-forms";
 
 export type PercursoEditavel = {
@@ -23,7 +25,7 @@ export function EditarPercurso({ percurso }: { percurso: PercursoEditavel }) {
   const router = useRouter();
   const [aberto, setAberto] = useState(false);
   const [enviando, setEnviando] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
+  const [erro, setErro] = useState<unknown>(null);
   const valoresIniciais = () => ({
     data: percurso.data,
     motorista: percurso.motorista,
@@ -47,21 +49,18 @@ export function EditarPercurso({ percurso }: { percurso: PercursoEditavel }) {
     setEnviando(true);
     setErro(null);
     try {
-      const res = await fetch(`/api/veiculos/${percurso.id}`, {
+      await chamarApi(`/api/veiculos/${percurso.id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+        json: {
           ...form,
           saidaKm: Number(form.saidaKm),
           chegadaKm: form.chegadaKm === "" ? null : Number(form.chegadaKm),
-        }),
+        },
       });
-      const j = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(j?.erro ?? "Não foi possível salvar.");
       setAberto(false);
       router.refresh();
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Não foi possível salvar.");
+      setErro(e);
     }
     setEnviando(false);
   }
@@ -86,8 +85,12 @@ export function EditarPercurso({ percurso }: { percurso: PercursoEditavel }) {
       {aberto && (
         <div
           className="fixed inset-0 z-[60] flex items-end justify-center bg-ink-950/50 p-4 backdrop-blur-sm sm:items-center"
-          role="dialog" aria-modal="true" aria-labelledby="titulo-percurso"
-          onClick={(e) => { if (e.target === e.currentTarget && !enviando) setAberto(false); }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="titulo-percurso"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !enviando) setAberto(false);
+          }}
         >
           <div className="animate-pop max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-2xl bg-card p-6 shadow-lift">
             <div className="flex items-start justify-between gap-3">
@@ -119,14 +122,22 @@ export function EditarPercurso({ percurso }: { percurso: PercursoEditavel }) {
             </div>
 
             <p className="mt-3 text-[0.72rem] text-ink-500">A correção fica registrada na auditoria com os valores anteriores e novos.</p>
-            {erro && <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[0.78rem] font-semibold text-red-700">{erro}</p>}
+            {erro ? <AvisoErro erro={erro} compacto className="mt-3" /> : null}
             <div className="mt-5 flex flex-col-reverse gap-2.5 sm:flex-row">
-              <button type="button" disabled={enviando} onClick={() => setAberto(false)}
-                className="inline-flex h-11 flex-1 items-center justify-center rounded-xl border border-ink-200 bg-white text-[0.84rem] font-bold text-ink-700 hover:border-ink-300">
+              <button
+                type="button"
+                disabled={enviando}
+                onClick={() => setAberto(false)}
+                className="inline-flex h-11 flex-1 items-center justify-center rounded-xl border border-ink-200 bg-white text-[0.84rem] font-bold text-ink-700 hover:border-ink-300"
+              >
                 Cancelar
               </button>
-              <button type="button" disabled={enviando} onClick={salvar}
-                className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-ink-900 text-[0.84rem] font-bold text-white hover:bg-ink-800 disabled:opacity-60">
+              <button
+                type="button"
+                disabled={enviando}
+                onClick={salvar}
+                className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-ink-900 text-[0.84rem] font-bold text-white hover:bg-ink-800 disabled:opacity-60"
+              >
                 {enviando && <Loader2 className="h-4 w-4 animate-spin" />}
                 Salvar correção
               </button>

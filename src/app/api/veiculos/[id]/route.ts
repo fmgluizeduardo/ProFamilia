@@ -5,9 +5,10 @@ import { veiculoRegistros } from "@/db/schema";
 import { dataReal, horaReal, kmValido, texto, uuidValido } from "@/lib/validacoes";
 import { autorizarApi, registrarAuditoria } from "@/lib/auth";
 import { descreverMudancas } from "@/lib/usuarios-admin";
+import { falhaInterna, rota } from "@/lib/erros-servidor";
 
 /** Correção completa de um lançamento (permissão "veiculos.editar"). */
-export async function PUT(
+export const PUT = rota(async function PUT(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -22,6 +23,7 @@ export async function PUT(
   let body: Record<string, unknown>;
   try {
     body = await req.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("Corpo não é um objeto JSON.");
   } catch {
     return NextResponse.json({ erro: "Corpo inválido." }, { status: 400 });
   }
@@ -80,12 +82,11 @@ export async function PUT(
     });
     return NextResponse.json({ ok: true });
   } catch (erro) {
-    console.error("Erro ao corrigir percurso:", erro);
-    return NextResponse.json({ erro: "Não foi possível salvar a correção." }, { status: 500 });
+    return falhaInterna(req, erro, { mensagem: "Não foi possível salvar a correção." });
   }
-}
+});
 
-export async function DELETE(
+export const DELETE = rota(async function DELETE(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -105,9 +106,9 @@ export async function DELETE(
     req,
   });
   return NextResponse.json({ ok: true });
-}
+});
 
-export async function PATCH(
+export const PATCH = rota(async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -122,6 +123,7 @@ export async function PATCH(
   let body: Record<string, unknown>;
   try {
     body = await req.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("Corpo não é um objeto JSON.");
   } catch {
     return NextResponse.json({ erro: "Corpo inválido." }, { status: 400 });
   }
@@ -181,10 +183,6 @@ export async function PATCH(
     });
     return NextResponse.json(atualizado);
   } catch (erro) {
-    console.error("Erro ao registrar chegada do veículo:", erro);
-    return NextResponse.json(
-      { erro: "Não foi possível registrar a chegada. Tente novamente." },
-      { status: 500 },
-    );
+    return falhaInterna(req, erro, { mensagem: "Não foi possível registrar a chegada. Tente novamente." });
   }
-}
+});

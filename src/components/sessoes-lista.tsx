@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, LogOut, Monitor, Smartphone } from "lucide-react";
+import { chamarApi } from "@/lib/api-cliente";
+import { AvisoErro } from "@/components/aviso-erro";
 
 export type SessaoResumo = {
   id: string;
@@ -36,25 +38,21 @@ export function SessoesLista({
 }) {
   const router = useRouter();
   const [enviando, setEnviando] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
+  const [ok, setOk] = useState<string | null>(null);
+  const [erro, setErro] = useState<unknown>(null);
   const outras = sessoes.filter((s) => !s.atual).length;
 
   async function encerrar() {
     if (!confirm("Encerrar as sessões abertas? Os aparelhos precisarão entrar novamente.")) return;
     setEnviando(true);
-    setMsg(null);
+    setOk(null);
+    setErro(null);
     try {
-      const res = await fetch(acao.url, {
-        method: acao.metodo,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(acao.corpo),
-      });
-      const j = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(j?.erro ?? "Não foi possível encerrar.");
-      setMsg("Sessões encerradas.");
+      await chamarApi(acao.url, { method: acao.metodo, json: acao.corpo });
+      setOk("Sessões encerradas.");
       router.refresh();
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : "Não foi possível encerrar.");
+      setErro(e);
     }
     setEnviando(false);
   }
@@ -76,10 +74,15 @@ export function SessoesLista({
                 <div className="min-w-0 flex-1">
                   <p className="text-[0.82rem] font-bold text-ink-800">
                     {aparelho.texto}
-                    {s.atual && <span className="ml-2 rounded bg-leaf-100 px-1.5 py-0.5 text-[0.6rem] font-bold uppercase text-leaf-700">Este aparelho</span>}
+                    {s.atual && (
+                      <span className="ml-2 rounded bg-leaf-100 px-1.5 py-0.5 text-[0.6rem] font-bold uppercase text-leaf-700">
+                        Este aparelho
+                      </span>
+                    )}
                   </p>
                   <p className="text-[0.7rem] text-ink-400">
-                    Entrou em {s.criadaEm} · expira em {s.expiraEm}{s.ip ? ` · IP ${s.ip}` : ""}
+                    Entrou em {s.criadaEm} · expira em {s.expiraEm}
+                    {s.ip ? ` · IP ${s.ip}` : ""}
                   </p>
                 </div>
               </li>
@@ -88,13 +91,18 @@ export function SessoesLista({
         </ul>
       )}
       {outras > 0 && (
-        <button type="button" onClick={encerrar} disabled={enviando}
-          className="mt-3 inline-flex h-10 items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 text-[0.8rem] font-bold text-red-700 hover:bg-red-100 disabled:opacity-60">
+        <button
+          type="button"
+          onClick={encerrar}
+          disabled={enviando}
+          className="mt-3 inline-flex h-10 items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 text-[0.8rem] font-bold text-red-700 hover:bg-red-100 disabled:opacity-60"
+        >
           {enviando ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
           {rotuloBotao}
         </button>
       )}
-      {msg && <p className="mt-2 text-[0.76rem] font-semibold text-ink-600">{msg}</p>}
+      {ok && <p className="mt-2 text-[0.76rem] font-semibold text-leaf-700">{ok}</p>}
+      {erro ? <AvisoErro erro={erro} compacto className="mt-2" /> : null}
     </div>
   );
 }

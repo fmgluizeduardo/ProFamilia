@@ -3,12 +3,14 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CircleUserRound, Loader2, SendHorizonal } from "lucide-react";
+import { chamarApi } from "@/lib/api-cliente";
+import { AvisoErro } from "@/components/aviso-erro";
 
 export function EvolucaoForm({ atendimentoId, autor }: { atendimentoId: string; autor: string }) {
   const router = useRouter();
   const [texto, setTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
+  const [erro, setErro] = useState<unknown>(null);
 
   async function enviar() {
     if (!texto.trim()) {
@@ -18,19 +20,11 @@ export function EvolucaoForm({ atendimentoId, autor }: { atendimentoId: string; 
     setEnviando(true);
     setErro(null);
     try {
-      const res = await fetch(`/api/atendimentos/${atendimentoId}/evolucoes`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ texto: texto.trim() }),
-      });
-      if (!res.ok) {
-        const j = await res.json().catch(() => null);
-        throw new Error(j?.erro ?? "Falha ao registrar evolução");
-      }
+      await chamarApi(`/api/atendimentos/${atendimentoId}/evolucoes`, { json: { texto: texto.trim() } });
       setTexto("");
       router.refresh();
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Erro ao registrar evolução.");
+      setErro(e);
     } finally {
       setEnviando(false);
     }
@@ -53,9 +47,7 @@ export function EvolucaoForm({ atendimentoId, autor }: { atendimentoId: string; 
         <CircleUserRound className="h-3.5 w-3.5" />
         Será registrada em nome de <strong className="text-ink-700">{autor}</strong>, com data e hora automáticas.
       </p>
-      {erro && (
-        <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5 text-[0.78rem] font-semibold text-red-700">{erro}</p>
-      )}
+      {erro ? <AvisoErro erro={erro} className="mt-3" /> : null}
       <button
         type="button"
         onClick={enviar}

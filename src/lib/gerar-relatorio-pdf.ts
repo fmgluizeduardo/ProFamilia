@@ -1,6 +1,5 @@
 import PDFDocument from "pdfkit";
-import fs from "node:fs";
-import path from "node:path";
+import { DEJAVU_SANS_BOLD_BASE64, DEJAVU_SANS_REGULAR_BASE64 } from "@/lib/fontes-pdf";
 import type { Atendimento, Evolucao, VeiculoRegistro } from "@/db/schema";
 import { ORGAO, RUA_TIPOS, USO_DROGAS, VINCULOS } from "@/lib/constants";
 import { rotuloVeiculo } from "@/lib/frota";
@@ -44,9 +43,19 @@ const FONTES: Record<Fonte, string> = {
   display: "DejaVuSansBold",
 };
 
+/** Fontes decodificadas uma única vez por instância do servidor. */
+let cacheFontes: { regular: Buffer; negrito: Buffer } | null = null;
+function fontesEmbutidas() {
+  cacheFontes ??= {
+    regular: Buffer.from(DEJAVU_SANS_REGULAR_BASE64, "base64"),
+    negrito: Buffer.from(DEJAVU_SANS_BOLD_BASE64, "base64"),
+  };
+  return cacheFontes;
+}
+
 function seguro(v: unknown): string {
   if (v === null || v === undefined || v === "") return "Não informado";
-  return String(v).trim() || "Não informado";
+  return String(v).normalize("NFC").trim() || "Não informado";
 }
 
 function lista(v: string[]): string {
@@ -84,31 +93,11 @@ class RelatorioA4 {
         Keywords: "abordagem social, relatório técnico, Barretos",
       },
     });
-    // Na Vercel, a pasta public/ vai para o CDN e NÃO acompanha a função
-    // serverless — por isso as fontes vivem em assets/fonts (incluídas no
-    // pacote via outputFileTracingIncludes no next.config.ts).
-    const candidatos = [
-      path.join(process.cwd(), "assets", "fonts"),
-      path.join(process.cwd(), "public", "fonts"),
-      path.join(__dirname, "..", "..", "..", "assets", "fonts"),
-    ];
-    const pasta = candidatos.find((dir) => {
-      try {
-        return (
-          fs.existsSync(path.join(dir, "DejaVuSans-Regular.ttf")) &&
-          fs.existsSync(path.join(dir, "DejaVuSans-Bold.ttf"))
-        );
-      } catch {
-        return false;
-      }
-    });
-    if (!pasta) {
-      throw new Error(
-        `Fontes do relatório não encontradas. Pastas verificadas: ${candidatos.join(" | ")}`,
-      );
-    }
-    this.doc.registerFont(FONTES.body, path.join(pasta, "DejaVuSans-Regular.ttf"));
-    this.doc.registerFont(FONTES.bold, path.join(pasta, "DejaVuSans-Bold.ttf"));
+    // Fontes embutidas no código (base64): o PDF não depende de arquivos em
+    // disco, que podem não acompanhar a função serverless da hospedagem.
+    const fontes = fontesEmbutidas();
+    this.doc.registerFont(FONTES.body, fontes.regular);
+    this.doc.registerFont(FONTES.bold, fontes.negrito);
   }
 
   fonte(tipo: Fonte, tamanho: number, cor: string) {
@@ -287,7 +276,7 @@ class RelatorioA4 {
   private quebrar(texto: string, largura: number, tamanho: number, fonte: Fonte): string[] {
     this.doc.font(FONTES[fonte]).fontSize(tamanho);
     const saida: string[] = [];
-    const paragrafos = texto.replace(/\r/g, "").split("\n");
+    const paragrafos = texto.normalize("NFC").replace(/\r/g, "").split("\n");
     for (const paragrafo of paragrafos) {
       if (!paragrafo.trim()) {
         saida.push("");

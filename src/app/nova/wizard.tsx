@@ -53,6 +53,8 @@ import {
   TextInput,
 } from "@/components/ui";
 import { SignaturePad } from "@/components/signature-pad";
+import { AvisoErro } from "@/components/aviso-erro";
+import { chamarApi } from "@/lib/api-cliente";
 
 export type FormState = {
   dataAtendimento: string;
@@ -300,7 +302,7 @@ export function Wizard({ edicao, usuarioNome, usuarioCargo, salva }: WizardProps
   const [descartado, setDescartado] = useState(false);
   const [erros, setErros] = useState<string[]>([]);
   const [enviando, setEnviando] = useState(false);
-  const [erroEnvio, setErroEnvio] = useState<string | null>(null);
+  const [erroEnvio, setErroEnvio] = useState<unknown>(null);
   const salvarTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const topoRef = useRef<HTMLDivElement>(null);
 
@@ -410,14 +412,10 @@ export function Wizard({ edicao, usuarioNome, usuarioCargo, salva }: WizardProps
         ...form,
         idade: form.idade ? Number(form.idade) : null,
       };
-      const res = await fetch(editando ? `/api/atendimentos/${edicao.id}` : "/api/atendimentos", {
-        method: editando ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (res.status === 401) throw new Error("Sua sessão expirou. Seus dados continuam salvos neste aparelho — entre novamente para enviar.");
-      if (!res.ok) throw new Error(json?.erro ?? "Falha ao salvar");
+      const json = await chamarApi<{ id: string; numero: number; podeVer?: boolean }>(
+        editando ? `/api/atendimentos/${edicao.id}` : "/api/atendimentos",
+        { method: editando ? "PUT" : "POST", json: payload },
+      );
       if (editando) {
         router.push(`/fichas/${edicao.id}?editado=1`);
         router.refresh();
@@ -432,11 +430,7 @@ export function Wizard({ edicao, usuarioNome, usuarioCargo, salva }: WizardProps
         setEnviando(false);
       }
     } catch (e) {
-      setErroEnvio(
-        e instanceof Error
-          ? e.message
-          : "Não foi possível salvar. Verifique a conexão e tente novamente.",
-      );
+      setErroEnvio(e);
       setEnviando(false);
     }
   }
@@ -1192,11 +1186,7 @@ export function Wizard({ edicao, usuarioNome, usuarioCargo, salva }: WizardProps
                   </dd>
                 </div>
               </dl>
-              {erroEnvio && (
-                <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[0.8rem] font-semibold text-red-700">
-                  {erroEnvio}
-                </p>
-              )}
+              {erroEnvio ? <AvisoErro erro={erroEnvio} /> : null}
             </Section>
           </>
         )}

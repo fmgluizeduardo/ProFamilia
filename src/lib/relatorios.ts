@@ -4,6 +4,7 @@ import { atendimentos, evolucoes, veiculoRegistros, veiculos } from "@/db/schema
 import type { Atendimento, Evolucao, Veiculo, VeiculoRegistro } from "@/db/schema";
 import { USO_DROGAS } from "@/lib/constants";
 import { dashISO, fmtMesAno, hojeISO, labelSN } from "@/lib/format";
+import { ehErroConexao } from "@/lib/erros-servidor";
 import type { Periodo } from "@/lib/report-config";
 export { TIPOS_RELATORIO } from "@/lib/report-config";
 export type { Periodo, TipoRelatorio } from "@/lib/report-config";
@@ -50,13 +51,6 @@ export async function carregarDadosRelatorio(periodo: Periodo): Promise<DadosRel
     db.select().from(veiculos).orderBy(desc(veiculos.ativo), asc(veiculos.modelo), asc(veiculos.placa)),
   ]);
   return { periodo, fichas, veiculos: registros, evolucoes: evolucoesDoPeriodo.map((r) => r.registro), frota };
-}
-
-/** Erros de rede/banco que valem uma segunda tentativa (ex.: Neon retomando após inatividade). */
-export function ehErroConexao(erro: unknown): boolean {
-  const codigo = (erro as { code?: unknown })?.code;
-  const texto = `${typeof codigo === "string" ? codigo : ""} ${erro instanceof Error ? erro.message : String(erro)}`.toLowerCase();
-  return ["econn", "enotfound", "eai_again", "etimedout", "econnreset", "epipe", "timeout", "terminated", "too many clients", "connection", "connect", "socket", "pool"].some((p) => texto.includes(p));
 }
 
 const ESPERA_REPETICAO_MS = 1500;

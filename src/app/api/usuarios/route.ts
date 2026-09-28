@@ -8,14 +8,16 @@ import { hashSenha } from "@/lib/senha";
 import { LIMITE_NOME, lerValidade, papelValido, permissoesParaPapel } from "@/lib/usuarios-admin";
 import { fmtData, hojeISO } from "@/lib/format";
 import { texto } from "@/lib/validacoes";
+import { falhaInterna, rota } from "@/lib/erros-servidor";
 
-export async function POST(req: Request) {
+export const POST = rota(async function POST(req: Request) {
   const auth = await autorizarApi(req, "admin");
   if (!auth.ok) return auth.resposta;
 
   let body: Record<string, unknown>;
   try {
     body = await req.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("Corpo não é um objeto JSON.");
   } catch {
     return NextResponse.json({ erro: "Requisição inválida." }, { status: 400 });
   }
@@ -69,7 +71,6 @@ export async function POST(req: Request) {
     });
     return NextResponse.json({ id: criado.id }, { status: 201 });
   } catch (erro) {
-    console.error("Erro ao criar usuário:", erro);
-    return NextResponse.json({ erro: "Não foi possível criar o usuário." }, { status: 500 });
+    return falhaInterna(req, erro, { mensagem: "Não foi possível criar o usuário." });
   }
-}
+});

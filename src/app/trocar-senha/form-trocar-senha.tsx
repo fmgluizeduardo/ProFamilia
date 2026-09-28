@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, Loader2, LogOut } from "lucide-react";
 import { CampoSenha, ChecklistSenha } from "@/components/campo-senha";
+import { AvisoErro } from "@/components/aviso-erro";
+import { chamarApi } from "@/lib/api-cliente";
 import { senhaForte } from "@/lib/permissoes";
 
 export function FormTrocarSenha({ login, obrigatoria }: { login: string; obrigatoria: boolean }) {
@@ -11,7 +13,7 @@ export function FormTrocarSenha({ login, obrigatoria }: { login: string; obrigat
   const [atual, setAtual] = useState("");
   const [nova, setNova] = useState("");
   const [confirma, setConfirma] = useState("");
-  const [erro, setErro] = useState<string | null>(null);
+  const [erro, setErro] = useState<unknown>(null);
   const [ok, setOk] = useState(false);
   const [enviando, setEnviando] = useState(false);
 
@@ -24,26 +26,24 @@ export function FormTrocarSenha({ login, obrigatoria }: { login: string; obrigat
     setEnviando(true);
     setErro(null);
     try {
-      const res = await fetch("/api/auth/trocar-senha", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ senhaAtual: atual, novaSenha: nova }),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json?.erro ?? "Não foi possível alterar a senha.");
+      await chamarApi("/api/auth/trocar-senha", { json: { senhaAtual: atual, novaSenha: nova } });
       setOk(true);
       setTimeout(() => {
         router.replace("/");
         router.refresh();
       }, 900);
     } catch (err) {
-      setErro(err instanceof Error ? err.message : "Não foi possível alterar a senha.");
+      setErro(err);
       setEnviando(false);
     }
   }
 
   async function sair() {
-    await fetch("/api/auth/logout", { method: "POST" });
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {
+      /* sem conexão: volta ao login mesmo assim */
+    }
     router.replace("/login");
     router.refresh();
   }
@@ -59,23 +59,12 @@ export function FormTrocarSenha({ login, obrigatoria }: { login: string; obrigat
 
   return (
     <form onSubmit={salvar} className="mt-5 space-y-4" noValidate>
-      <CampoSenha
-        id="atual"
-        rotulo={obrigatoria ? "Senha atual (temporária)" : "Senha atual"}
-        valor={atual}
-        onChange={setAtual}
-      />
+      <CampoSenha id="atual" rotulo={obrigatoria ? "Senha atual (temporária)" : "Senha atual"} valor={atual} onChange={setAtual} />
       <CampoSenha id="nova" rotulo="Nova senha" valor={nova} onChange={setNova} autoComplete="new-password" />
       <ChecklistSenha senha={nova} login={login} />
       <CampoSenha id="confirma" rotulo="Confirme a nova senha" valor={confirma} onChange={setConfirma} autoComplete="new-password" />
-      {confirma && nova !== confirma && (
-        <p className="text-[0.76rem] font-semibold text-sun-700">As senhas não coincidem.</p>
-      )}
-      {erro && (
-        <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-[0.8rem] font-semibold text-red-700">
-          {erro}
-        </p>
-      )}
+      {confirma && nova !== confirma && <p className="text-[0.76rem] font-semibold text-sun-700">As senhas não coincidem.</p>}
+      {erro ? <AvisoErro erro={erro} /> : null}
       <button
         type="submit"
         disabled={enviando || !podeEnviar}
@@ -85,7 +74,11 @@ export function FormTrocarSenha({ login, obrigatoria }: { login: string; obrigat
         Salvar nova senha
       </button>
       {obrigatoria && (
-        <button type="button" onClick={sair} className="inline-flex w-full items-center justify-center gap-1.5 text-[0.78rem] font-bold text-ink-400 hover:text-ink-700">
+        <button
+          type="button"
+          onClick={sair}
+          className="inline-flex w-full items-center justify-center gap-1.5 text-[0.78rem] font-bold text-ink-400 hover:text-ink-700"
+        >
           <LogOut className="h-3.5 w-3.5" />
           Sair
         </button>

@@ -5,8 +5,9 @@ import { autorizarApi, registrarAuditoria } from "@/lib/auth";
 import { normalizarFicha } from "@/lib/ficha-dados";
 import { numeroAtendimento } from "@/lib/format";
 import { temPermissao } from "@/lib/permissoes";
+import { falhaInterna, rota } from "@/lib/erros-servidor";
 
-export async function POST(req: Request) {
+export const POST = rota(async function POST(req: Request) {
   const auth = await autorizarApi(req, "fichas.criar");
   if (!auth.ok) return auth.resposta;
   const { usuario } = auth;
@@ -14,6 +15,7 @@ export async function POST(req: Request) {
   let body: Record<string, unknown>;
   try {
     body = await req.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("Corpo não é um objeto JSON.");
   } catch {
     return NextResponse.json({ erro: "Corpo da requisição inválido." }, { status: 400 });
   }
@@ -39,7 +41,6 @@ export async function POST(req: Request) {
       { status: 201 },
     );
   } catch (e) {
-    console.error("Erro ao salvar atendimento:", e);
-    return NextResponse.json({ erro: "Não foi possível salvar a ficha. Tente novamente." }, { status: 500 });
+    return falhaInterna(req, e, { mensagem: "Não foi possível salvar a ficha. Tente novamente." });
   }
-}
+});

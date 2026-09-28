@@ -5,9 +5,10 @@ import { usuarios } from "@/db/schema";
 import { autorizarApi, encerrarSessoesDoUsuario, registrarAuditoria } from "@/lib/auth";
 import { hashSenha } from "@/lib/senha";
 import { uuidValido } from "@/lib/validacoes";
+import { rota } from "@/lib/erros-servidor";
 
 /** Administrador redefine a senha: nova senha temporária + troca obrigatória no próximo acesso. */
-export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export const POST = rota(async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await autorizarApi(req, "admin");
   if (!auth.ok) return auth.resposta;
   const { id } = await params;
@@ -16,6 +17,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   let body: Record<string, unknown>;
   try {
     body = await req.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("Corpo não é um objeto JSON.");
   } catch {
     return NextResponse.json({ erro: "Requisição inválida." }, { status: 400 });
   }
@@ -40,4 +42,4 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   await registrarAuditoria({ usuario: auth.usuario, acao: "usuario.senha_redefinida", entidade: "usuario", entidadeId: id, detalhes: `@${alvo.login}`, req });
 
   return NextResponse.json({ ok: true });
-}
+});

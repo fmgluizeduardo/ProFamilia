@@ -6,8 +6,9 @@ import { fichaNoEscopo } from "@/lib/escopo";
 import { autorizarApi, registrarAuditoria } from "@/lib/auth";
 import { fmtDataHora } from "@/lib/format";
 import { uuidValido } from "@/lib/validacoes";
+import { rota } from "@/lib/erros-servidor";
 
-export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export const DELETE = rota(async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await autorizarApi(req, "evolucoes.excluir");
   if (!auth.ok) return auth.resposta;
   const { id } = await params;
@@ -30,4 +31,4 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
     detalhes: `Evolução de ${evo.autorNome} em ${fmtDataHora(evo.createdAt)}: “${evo.texto.slice(0, 120)}”`, req,
   });
   return NextResponse.json({ ok: true });
-}
+});

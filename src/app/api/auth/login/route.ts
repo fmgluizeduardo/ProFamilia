@@ -13,13 +13,15 @@ import {
 } from "@/lib/auth";
 import { obterHashFicticio, verificarSenha } from "@/lib/senha";
 import { fmtData, hojeISO } from "@/lib/format";
+import { falhaInterna, rota } from "@/lib/erros-servidor";
 
 const ERRO_GENERICO = "Usuário ou senha inválidos.";
 
-export async function POST(req: Request) {
+export const POST = rota(async function POST(req: Request) {
   let body: Record<string, unknown>;
   try {
     body = await req.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("Corpo não é um objeto JSON.");
   } catch {
     return NextResponse.json({ erro: "Requisição inválida." }, { status: 400 });
   }
@@ -41,7 +43,7 @@ export async function POST(req: Request) {
       // Mesmo custo de processamento para não revelar quais usuários existem.
       await verificarSenha(senha, await obterHashFicticio());
       await registrarAuditoria({ acao: "login.falha", detalhes: `Usuário inexistente: ${login}`, req });
-      return NextResponse.json({ erro: ERRO_GENERICO }, { status: 401 });
+      return NextResponse.json({ erro: ERRO_GENERICO, codigo: "AUT-007" }, { status: 401 });
     }
 
     if (usuario.bloqueadoAte && usuario.bloqueadoAte > new Date()) {
@@ -57,7 +59,7 @@ export async function POST(req: Request) {
     if (!confere || !usuario.ativo) {
       if (confere && !usuario.ativo) {
         await registrarAuditoria({ usuario, acao: "login.falha", detalhes: "Usuário desativado", req });
-        return NextResponse.json({ erro: "Este usuário está desativado. Fale com o administrador." }, { status: 403 });
+        return NextResponse.json({ erro: "Este usuário está desativado. Fale com o administrador.", codigo: "AUT-006" }, { status: 403 });
       }
       const tentativas = usuario.tentativasFalhas + 1;
       const bloquear = tentativas >= MAX_TENTATIVAS;
@@ -71,7 +73,7 @@ export async function POST(req: Request) {
         req,
       });
       return NextResponse.json(
-        { erro: bloquear ? "Muitas tentativas incorretas. Acesso bloqueado por 15 minutos." : ERRO_GENERICO },
+        { erro: bloquear ? "Muitas tentativas incorretas. Acesso bloqueado por 15 minutos." : ERRO_GENERICO, codigo: bloquear ? "AUT-005" : "AUT-007" },
         { status: bloquear ? 429 : 401 },
       );
     }
@@ -79,7 +81,7 @@ export async function POST(req: Request) {
     if (usuario.acessoAte && usuario.acessoAte < hojeISO()) {
       await registrarAuditoria({ usuario, acao: "login.falha", detalhes: `Acesso expirado em ${fmtData(usuario.acessoAte)}`, req });
       return NextResponse.json(
-        { erro: `Seu acesso expirou em ${fmtData(usuario.acessoAte)}. Fale com o administrador para renová-lo.` },
+        { erro: `Seu acesso expirou em ${fmtData(usuario.acessoAte)}. Fale com o administrador para renová-lo.`, codigo: "AUT-006" },
         { status: 403 },
       );
     }
@@ -101,7 +103,6 @@ export async function POST(req: Request) {
     resposta.cookies.set(COOKIE_SESSAO, token, opcoesCookie(expiraEm, lembrar));
     return resposta;
   } catch (erro) {
-    console.error("Erro no login:", erro);
-    return NextResponse.json({ erro: "Não foi possível entrar agora. Tente novamente." }, { status: 500 });
+    return falhaInterna(req, erro, { mensagem: "Não foi possível entrar agora. Tente novamente." });
   }
-}
+});

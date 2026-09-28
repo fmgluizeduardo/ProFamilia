@@ -90,7 +90,7 @@ período). Acompanhe KPIs e gráficos; em **“Relatórios profissionais em PDF�
 escolha o conteúdo — **Completo**, **Indicadores** (só estatísticas, sem
 nomes), **Prontuários e evoluções** ou **Veículo** — e toque em **Exportar PDF**
 ou **Abrir para imprimir**. **Exportar CSV** baixa a planilha do período para
-o Excel. Acima de 1.500 fichas, os PDFs nominais pedem período menor (use o CSV).
+o Excel. Acima de 250 fichas, os PDFs nominais pedem período menor (use o CSV).
 
 Relatórios com nomes contêm dados sensíveis: só para equipe autorizada. Para
 divulgação geral, use o de Indicadores.
@@ -158,3 +158,36 @@ Boa prática: conceda o mínimo necessário. Excluir e exportar devem ficar com 
 RBSV (rua sem vínculo) · RBCV (rua com vínculo) · RNB (não barretense 6+ meses) ·
 BPC · NIS · CRAS · CREAS · CAPS/CAPS AD · UBS/UPA · SUS/INSS. Definições
 completas na página Manual do sistema.
+
+## 13. Códigos de erro
+
+Quando algo dá errado, o sistema mostra um aviso com um **código** (ex.: `REL-001`) e, em
+falhas do sistema, uma **referência** (ex.: `K7Q2-M9XA`). Ao pedir ajuda, toque em
+**Copiar detalhes** e envie o texto ao administrador — com a referência, ele encontra o
+registro técnico em **Usuários › Erros do sistema**.
+
+| Código | Significado | O que fazer |
+|---|---|---|
+| AUT-001 | Sessão encerrada | Entrar novamente (rascunhos continuam salvos no aparelho) |
+| AUT-002 | Troca de senha pendente | Definir a senha pessoal |
+| AUT-003 | Ação não permitida para o perfil | Pedir ajuste de permissões ao administrador |
+| AUT-004 | Origem não reconhecida | Recarregar pelo endereço oficial |
+| AUT-005 | Acesso temporariamente bloqueado | Aguardar ou pedir desbloqueio |
+| AUT-006 | Usuário desativado ou acesso expirado | Falar com o administrador |
+| AUT-007 | Usuário ou senha inválidos | Conferir os dados (5 erros bloqueiam por 15 min) |
+| VAL-001 | Dados a conferir | Corrigir o campo indicado |
+| VAL-002 | Requisição inválida | Recarregar a página e repetir |
+| REG-001 | Registro não encontrado | Atualizar a página |
+| REG-002 | Conflito com informações existentes | Ler a mensagem e ajustar |
+| BD-001 | Banco temporariamente indisponível | Aguardar ~30 s e tentar de novo |
+| BD-002 | Falha ao gravar ou consultar | Tentar de novo; persistindo, enviar código e referência |
+| BD-003 | Estrutura do banco desatualizada | Administrador aplica `npx drizzle-kit migrate` |
+| REL-001 | Falha ao gerar relatório | Tentar de novo; persistindo, enviar código e referência |
+| REL-002 | Relatório grande demais | Reduzir o período ou usar o CSV |
+| REL-003 | Período inválido | Corrigir as datas |
+| REL-004 | Falha ao exportar planilha | Tentar de novo; persistindo, enviar código e referência |
+| SIS-001 | Erro inesperado | Tentar de novo; persistindo, enviar código e referência |
+| SIS-002 | Sem conexão com o servidor | Verificar a internet do aparelho |
+| SIS-003 | Resposta inesperada do servidor | Tentar novamente em instantes |
+| SIS-004 | A operação demorou demais | Tentar de novo ou reduzir o período |
+| SIS-005 | Erro ao exibir a página | Tentar novamente; persistindo, enviar código e referência |

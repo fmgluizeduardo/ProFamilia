@@ -15,9 +15,11 @@ import {
   ShieldCheck,
   Smartphone,
   Truck,
+  Bug,
 } from "lucide-react";
 import { BotaoImprimirManual } from "./botao-imprimir-manual";
 import { exigirUsuario } from "@/lib/auth";
+import { CATALOGO_ERROS } from "@/lib/erros-catalogo";
 
 export const metadata: Metadata = {
   title: "Manual do Usuário",
@@ -38,6 +40,7 @@ const INDICE = [
   { n: "10", href: "#glossario", label: "Glossário de siglas" },
   { n: "11", href: "#acesso", label: "Acesso, senha e permissões" },
   { n: "12", href: "#administracao", label: "Administração de usuários" },
+  { n: "13", href: "#codigos-de-erro", label: "Códigos de erro" },
 ];
 
 function Secao({
@@ -421,6 +424,28 @@ export default async function ManualPage() {
           Conceda o mínimo necessário para cada função. Permissões de <strong>excluir</strong> e de{" "}
           <strong>exportar relatórios</strong> devem ficar restritas à coordenação.
         </Dica>
+      </Secao>
+
+      <Secao numero="13" id="codigos-de-erro" titulo="Códigos de erro" icone={Bug}>
+        <p>
+          Quando algo dá errado, o sistema mostra um aviso com um <strong>código</strong> (ex.: REL-001) e, em
+          falhas do sistema, uma <strong>referência</strong> (ex.: K7Q2-M9XA). Ao pedir ajuda, toque em{" "}
+          <strong>“Copiar detalhes”</strong> e envie o texto ao administrador — com a referência, ele encontra o
+          registro técnico em <strong>Usuários › Erros do sistema</strong>.
+        </p>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {Object.entries(CATALOGO_ERROS).map(([codigo, info]) => (
+            <div key={codigo} className="rounded-xl border border-ink-100 bg-paper/60 p-3">
+              <p className="flex flex-wrap items-center gap-2">
+                <span className="rounded-md border border-ink-200 bg-white px-1.5 py-0.5 font-mono text-[0.72rem] font-bold text-ink-700">
+                  {codigo}
+                </span>
+                <span className="text-[0.8rem] font-bold text-ink-900">{info.titulo}</span>
+              </p>
+              <p className="mt-1 text-[0.76rem] leading-relaxed text-ink-600">{info.orientacao}</p>
+            </div>
+          ))}
+        </div>
       </Secao>
 
       {/* ——— Atalhos ——— */}

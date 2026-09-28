@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { FlagTriangleRight, Loader2, LogIn, Plus, X } from "lucide-react";
 import { agoraHM, hojeISO } from "@/lib/format";
+import { chamarApi } from "@/lib/api-cliente";
+import { AvisoErro } from "@/components/aviso-erro";
 
 const MOTORISTA_KEY = "profamilia:motorista";
 
@@ -45,7 +47,7 @@ export function SaidaForm({ veiculos }: { veiculos: OpcaoVeiculo[] }) {
   const router = useRouter();
   const [aberto, setAberto] = useState(false);
   const [enviando, setEnviando] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
+  const [erro, setErro] = useState<unknown>(null);
   // Inicialização preguiçosa: roda uma vez na montagem, sem useEffect.
   const [form, setForm] = useState(() => ({
     ...padroesSaida(primeiroDisponivel(veiculos)),
@@ -77,26 +79,26 @@ export function SaidaForm({ veiculos }: { veiculos: OpcaoVeiculo[] }) {
     }
     setEnviando(true);
     try {
-      localStorage.setItem(MOTORISTA_KEY, form.motorista.trim());
-      const res = await fetch("/api/veiculos", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      try {
+        localStorage.setItem(MOTORISTA_KEY, form.motorista.trim());
+      } catch {
+        /* sem armazenamento local: segue */
+      }
+      await chamarApi("/api/veiculos", {
+        json: {
           veiculoId: form.veiculoId,
           data: form.data,
           motorista: form.motorista.trim(),
           saidaHora: form.saidaHora,
           saidaKm: Number(form.saidaKm),
           saidaLocal: form.saidaLocal.trim(),
-        }),
+        },
       });
-      const j = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(j?.erro ?? "Falha ao registrar saída");
       setAberto(false);
       setForm((f) => ({ ...f, saidaLocal: "" }));
       router.refresh();
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Erro ao registrar saída.");
+      setErro(e);
     }
     setEnviando(false);
   }
@@ -138,7 +140,8 @@ export function SaidaForm({ veiculos }: { veiculos: OpcaoVeiculo[] }) {
         >
           {veiculos.map((v) => (
             <option key={v.id} value={v.id} disabled={v.emRota}>
-              {v.rotulo}{v.emRota ? " — em rota" : ""}
+              {v.rotulo}
+              {v.emRota ? " — em rota" : ""}
             </option>
           ))}
         </select>
@@ -146,39 +149,46 @@ export function SaidaForm({ veiculos }: { veiculos: OpcaoVeiculo[] }) {
       <div className="mt-3 grid grid-cols-2 gap-3">
         <div>
           <label className={labelCls}>Data</label>
-          <input type="date" className={inputCls} value={form.data}
-            onChange={(e) => setForm({ ...form, data: e.target.value })} />
+          <input type="date" className={inputCls} value={form.data} onChange={(e) => setForm({ ...form, data: e.target.value })} />
         </div>
         <div>
           <label className={labelCls}>Hora da saída</label>
-          <input type="time" className={inputCls} value={form.saidaHora}
-            onChange={(e) => setForm({ ...form, saidaHora: e.target.value })} />
+          <input type="time" className={inputCls} value={form.saidaHora} onChange={(e) => setForm({ ...form, saidaHora: e.target.value })} />
         </div>
       </div>
       <div className="mt-3 grid grid-cols-2 gap-3">
         <div>
           <label className={labelCls}>Motorista</label>
-          <input className={inputCls} placeholder="Nome do motorista" value={form.motorista}
-            onChange={(e) => setForm({ ...form, motorista: e.target.value })} />
+          <input
+            className={inputCls}
+            placeholder="Nome do motorista"
+            value={form.motorista}
+            onChange={(e) => setForm({ ...form, motorista: e.target.value })}
+          />
         </div>
         <div>
           <label className={labelCls}>
             KM de saída{selecionado ? ` (último: ${selecionado.kmAtual.toLocaleString("pt-BR")})` : ""}
           </label>
-          <input className={inputCls} inputMode="numeric" placeholder="Ex.: 48.250" value={form.saidaKm}
-            onChange={(e) => setForm({ ...form, saidaKm: e.target.value.replace(/\D/g, "") })} />
+          <input
+            className={inputCls}
+            inputMode="numeric"
+            placeholder="Ex.: 48.250"
+            value={form.saidaKm}
+            onChange={(e) => setForm({ ...form, saidaKm: e.target.value.replace(/\D/g, "") })}
+          />
         </div>
       </div>
       <div className="mt-3">
         <label className={labelCls}>Local / destino da ronda</label>
-        <input className={inputCls} placeholder="Ex.: Centro — Praças e Rodoviária" value={form.saidaLocal}
-          onChange={(e) => setForm({ ...form, saidaLocal: e.target.value })} />
+        <input
+          className={inputCls}
+          placeholder="Ex.: Centro — Praças e Rodoviária"
+          value={form.saidaLocal}
+          onChange={(e) => setForm({ ...form, saidaLocal: e.target.value })}
+        />
       </div>
-      {erro && (
-        <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5 text-[0.78rem] font-semibold text-red-700">
-          {erro}
-        </p>
-      )}
+      {erro ? <AvisoErro erro={erro} className="mt-3" /> : null}
       <button
         type="button"
         onClick={enviar}
@@ -195,7 +205,7 @@ export function SaidaForm({ veiculos }: { veiculos: OpcaoVeiculo[] }) {
 export function ChegadaForm({ registroId, saidaKm }: { registroId: string; saidaKm: number }) {
   const router = useRouter();
   const [enviando, setEnviando] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
+  const [erro, setErro] = useState<unknown>(null);
   const [form, setForm] = useState(() => ({
     chegadaHora: agoraHM(),
     chegadaKm: "",
@@ -210,20 +220,17 @@ export function ChegadaForm({ registroId, saidaKm }: { registroId: string; saida
     }
     setEnviando(true);
     try {
-      const res = await fetch(`/api/veiculos/${registroId}`, {
+      await chamarApi(`/api/veiculos/${registroId}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+        json: {
           chegadaHora: form.chegadaHora,
           chegadaKm: Number(form.chegadaKm),
           chegadaLocal: form.chegadaLocal.trim(),
-        }),
+        },
       });
-      const j = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(j?.erro ?? "Falha ao registrar chegada");
       router.refresh();
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Erro ao registrar chegada.");
+      setErro(e);
       setEnviando(false);
     }
   }
@@ -234,25 +241,24 @@ export function ChegadaForm({ registroId, saidaKm }: { registroId: string; saida
       <div className="mt-2.5 grid grid-cols-2 gap-3">
         <div>
           <label className={labelCls}>Hora</label>
-          <input type="time" className={inputCls} value={form.chegadaHora}
-            onChange={(e) => setForm({ ...form, chegadaHora: e.target.value })} />
+          <input type="time" className={inputCls} value={form.chegadaHora} onChange={(e) => setForm({ ...form, chegadaHora: e.target.value })} />
         </div>
         <div>
           <label className={labelCls}>KM (saída: {saidaKm.toLocaleString("pt-BR")})</label>
-          <input className={inputCls} inputMode="numeric" placeholder="KM atual" value={form.chegadaKm}
-            onChange={(e) => setForm({ ...form, chegadaKm: e.target.value.replace(/\D/g, "") })} />
+          <input
+            className={inputCls}
+            inputMode="numeric"
+            placeholder="KM atual"
+            value={form.chegadaKm}
+            onChange={(e) => setForm({ ...form, chegadaKm: e.target.value.replace(/\D/g, "") })}
+          />
         </div>
       </div>
       <div className="mt-3">
         <label className={labelCls}>Local de chegada</label>
-        <input className={inputCls} value={form.chegadaLocal}
-          onChange={(e) => setForm({ ...form, chegadaLocal: e.target.value })} />
+        <input className={inputCls} value={form.chegadaLocal} onChange={(e) => setForm({ ...form, chegadaLocal: e.target.value })} />
       </div>
-      {erro && (
-        <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5 text-[0.78rem] font-semibold text-red-700">
-          {erro}
-        </p>
-      )}
+      {erro ? <AvisoErro erro={erro} className="mt-3" /> : null}
       <button
         type="button"
         onClick={enviar}

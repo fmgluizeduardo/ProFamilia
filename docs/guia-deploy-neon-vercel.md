@@ -259,9 +259,9 @@ Settings → Environment Variables → confira valor/escopo → **Redeploy**.
 | Build falha: `DATABASE_URL is required` | Variável ausente na Vercel | Adicione `DATABASE_URL` em Settings → Environment Variables e faça Redeploy |
 | `/api/health` retorna `{"ok":false}` | String errada, banco pausado ou IP | Confira a string pooled; no Neon, verifique se o projeto está ativo |
 | `too many connections` | Conexão direta em vez de pooled | Troque para a string **pooled** (`...-pooler...`) na Vercel |
-| PDF retorna erro 500 | Fontes não incluídas | Confira que `assets/fonts/*.ttf` foi commitado e que `next.config.ts` mantém `outputFileTracingIncludes` |
+| Relatório/ação mostra aviso de erro | Qualquer falha | Anote o código e a referência do aviso e busque a referência em **Usuários › Erros do sistema** (detalhe técnico). BD-003 = aplicar `npx drizzle-kit migrate`; BD-001 = banco indisponível |
 | Relatório/CSV mostra erro de conexão (503) | Neon retomando após inatividade | Normal na primeira geração do dia: o sistema tenta de novo sozinho; se persistir, aguarde ~30 s e tente novamente |
-| Páginas de relatório lentas | Período muito longo | O sistema limita PDFs nominais a 1.500 fichas; reduza o período ou use o CSV |
+| Páginas de relatório lentas | Período muito longo | O sistema limita PDFs nominais a 250 fichas; reduza o período ou use o CSV |
 | `drizzle-kit migrate` não acha o banco | `.env` errado ou ausente | `cat .env` deve mostrar a URL do Neon; rode o comando na raiz do projeto |
 | Seed apagou dados | Rodado contra produção | Restaure pelo backup do Neon; o seed tem trava anti-produção, não a desative |
 

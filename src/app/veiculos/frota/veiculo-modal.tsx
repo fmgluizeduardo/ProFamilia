@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Pencil, Plus, Power, X } from "lucide-react";
 import { formatarPlaca, normalizarPlaca, placaValida } from "@/lib/frota";
+import { chamarApi } from "@/lib/api-cliente";
+import { AvisoErro } from "@/components/aviso-erro";
 import { inputCls, labelCls } from "../veiculo-forms";
 
 export type VeiculoEditavel = {
@@ -26,7 +28,7 @@ export function VeiculoModal({ veiculo }: { veiculo?: VeiculoEditavel }) {
   const editando = !!veiculo;
   const [aberto, setAberto] = useState(false);
   const [enviando, setEnviando] = useState<null | "salvar" | "status">(null);
-  const [erro, setErro] = useState<string | null>(null);
+  const [erro, setErro] = useState<unknown>(null);
   const valoresIniciais = () => ({
     modelo: veiculo?.modelo ?? "",
     marca: veiculo?.marca ?? "",
@@ -48,17 +50,14 @@ export function VeiculoModal({ veiculo }: { veiculo?: VeiculoEditavel }) {
     setEnviando(tipo);
     setErro(null);
     try {
-      const res = await fetch(editando ? `/api/frota/${veiculo.id}` : "/api/frota", {
+      await chamarApi(editando ? `/api/frota/${veiculo.id}` : "/api/frota", {
         method: editando ? "PATCH" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(corpo),
+        json: corpo,
       });
-      const j = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(j?.erro ?? "Não foi possível salvar.");
       setAberto(false);
       router.refresh();
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Não foi possível salvar.");
+      setErro(e);
     }
     setEnviando(null);
   }
@@ -84,13 +83,19 @@ export function VeiculoModal({ veiculo }: { veiculo?: VeiculoEditavel }) {
   return (
     <>
       {editando ? (
-        <button type="button" onClick={abrir}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-[0.74rem] font-bold text-ink-700 transition-colors hover:border-ink-300">
+        <button
+          type="button"
+          onClick={abrir}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-[0.74rem] font-bold text-ink-700 transition-colors hover:border-ink-300"
+        >
           <Pencil className="h-3.5 w-3.5" /> Editar
         </button>
       ) : (
-        <button type="button" onClick={abrir}
-          className="inline-flex h-11 items-center gap-2 rounded-xl bg-ink-900 px-5 text-[0.84rem] font-bold text-white shadow-lift transition-all hover:bg-ink-800 active:scale-[0.98]">
+        <button
+          type="button"
+          onClick={abrir}
+          className="inline-flex h-11 items-center gap-2 rounded-xl bg-ink-900 px-5 text-[0.84rem] font-bold text-white shadow-lift transition-all hover:bg-ink-800 active:scale-[0.98]"
+        >
           <Plus className="h-4 w-4" /> Cadastrar veículo
         </button>
       )}
@@ -98,8 +103,12 @@ export function VeiculoModal({ veiculo }: { veiculo?: VeiculoEditavel }) {
       {aberto && (
         <div
           className="fixed inset-0 z-[60] flex items-end justify-center bg-ink-950/50 p-4 backdrop-blur-sm sm:items-center"
-          role="dialog" aria-modal="true" aria-labelledby="titulo-veiculo"
-          onClick={(e) => { if (e.target === e.currentTarget && !enviando) setAberto(false); }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="titulo-veiculo"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !enviando) setAberto(false);
+          }}
         >
           <div className="animate-pop max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-2xl bg-card p-6 shadow-lift">
             <div className="flex items-start justify-between gap-3">
@@ -116,8 +125,12 @@ export function VeiculoModal({ veiculo }: { veiculo?: VeiculoEditavel }) {
               <div><label className={labelCls}>Marca</label><input className={inputCls} placeholder="Ex.: Volkswagen" maxLength={60} {...campo("marca")} /></div>
               <div>
                 <label className={labelCls}>Placa *</label>
-                <input className={`${inputCls} font-mono uppercase`} placeholder="ABC-1234" maxLength={8}
-                  {...campo("placa", (v) => v.toUpperCase().replace(/[^A-Z0-9-]/g, ""))} />
+                <input
+                  className={`${inputCls} font-mono uppercase`}
+                  placeholder="ABC-1234"
+                  maxLength={8}
+                  {...campo("placa", (v) => v.toUpperCase().replace(/[^A-Z0-9-]/g, ""))}
+                />
               </div>
               <div><label className={labelCls}>Ano</label><input className={inputCls} inputMode="numeric" placeholder="Ex.: 2012" maxLength={4} {...campo("ano", (v) => v.replace(/\D/g, ""))} /></div>
               <div><label className={labelCls}>Cor</label><input className={inputCls} placeholder="Ex.: Branca" maxLength={30} {...campo("cor")} /></div>
@@ -136,28 +149,41 @@ export function VeiculoModal({ veiculo }: { veiculo?: VeiculoEditavel }) {
               </div>
             </div>
             <p className="mt-2 text-[0.72rem] text-ink-500">
-              O KM inicial é a referência para a primeira saída. Correções de placa ou modelo atualizam o nome do veículo em todo o histórico.
+              O KM inicial é a referência para a primeira saída. Correções de placa ou modelo atualizam o nome do
+              veículo em todo o histórico.
             </p>
 
-            {erro && <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[0.78rem] font-semibold text-red-700">{erro}</p>}
+            {erro ? <AvisoErro erro={erro} compacto className="mt-3" /> : null}
 
             <div className="mt-5 flex flex-col-reverse gap-2.5 sm:flex-row">
               {editando && (
-                <button type="button" onClick={alternarStatus} disabled={!!enviando || (veiculo.ativo && veiculo.emRota)}
+                <button
+                  type="button"
+                  onClick={alternarStatus}
+                  disabled={!!enviando || (veiculo.ativo && veiculo.emRota)}
                   title={veiculo.ativo && veiculo.emRota ? "Registre a chegada antes de desativar" : undefined}
                   className={`inline-flex h-11 items-center justify-center gap-2 rounded-xl px-4 text-[0.82rem] font-bold disabled:cursor-not-allowed disabled:opacity-50 ${
                     veiculo.ativo ? "border border-red-200 bg-red-50 text-red-700 hover:bg-red-100" : "bg-leaf-600 text-white hover:bg-leaf-700"
-                  }`}>
+                  }`}
+                >
                   {enviando === "status" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Power className="h-4 w-4" />}
                   {veiculo.ativo ? "Desativar" : "Reativar"}
                 </button>
               )}
-              <button type="button" disabled={!!enviando} onClick={() => setAberto(false)}
-                className="inline-flex h-11 flex-1 items-center justify-center rounded-xl border border-ink-200 bg-white text-[0.84rem] font-bold text-ink-700 hover:border-ink-300">
+              <button
+                type="button"
+                disabled={!!enviando}
+                onClick={() => setAberto(false)}
+                className="inline-flex h-11 flex-1 items-center justify-center rounded-xl border border-ink-200 bg-white text-[0.84rem] font-bold text-ink-700 hover:border-ink-300"
+              >
                 Cancelar
               </button>
-              <button type="button" disabled={!!enviando} onClick={salvar}
-                className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-ink-900 text-[0.84rem] font-bold text-white hover:bg-ink-800 disabled:opacity-60">
+              <button
+                type="button"
+                disabled={!!enviando}
+                onClick={salvar}
+                className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-ink-900 text-[0.84rem] font-bold text-white hover:bg-ink-800 disabled:opacity-60"
+              >
                 {enviando === "salvar" && <Loader2 className="h-4 w-4 animate-spin" />}
                 {editando ? "Salvar" : "Cadastrar"}
               </button>

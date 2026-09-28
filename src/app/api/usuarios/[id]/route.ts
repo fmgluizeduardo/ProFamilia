@@ -12,9 +12,10 @@ import {
   permissoesParaPapel,
 } from "@/lib/usuarios-admin";
 import { texto, uuidValido } from "@/lib/validacoes";
+import { rota } from "@/lib/erros-servidor";
 
 /** Atualiza dados, papel, permissões, status ou desbloqueia o usuário. */
-export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export const PATCH = rota(async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await autorizarApi(req, "admin");
   if (!auth.ok) return auth.resposta;
   const { id } = await params;
@@ -26,6 +27,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   let body: Record<string, unknown>;
   try {
     body = await req.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("Corpo não é um objeto JSON.");
   } catch {
     return NextResponse.json({ erro: "Requisição inválida." }, { status: 400 });
   }
@@ -95,4 +97,4 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   });
 
   return NextResponse.json({ ok: true });
-}
+});

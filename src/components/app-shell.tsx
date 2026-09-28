@@ -82,7 +82,11 @@ function MenuConta({ usuario, escuro = false }: { usuario: UsuarioShell; escuro?
   }, [aberto]);
 
   async function sair() {
-    await fetch("/api/auth/logout", { method: "POST" });
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {
+      /* sem conexão: volta ao login mesmo assim */
+    }
     router.replace("/login");
     router.refresh();
   }

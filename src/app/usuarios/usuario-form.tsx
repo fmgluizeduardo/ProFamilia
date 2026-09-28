@@ -28,6 +28,8 @@ import {
   type Papel,
   type Permissao,
 } from "@/lib/permissoes";
+import { AvisoErro } from "@/components/aviso-erro";
+import { chamarApi } from "@/lib/api-cliente";
 
 export type UsuarioEditavel = {
   id: string;
@@ -59,21 +61,17 @@ function gerarSenhaTemporaria(): string {
   return `${corpo.slice(0, 4)}-${corpo.slice(4)}${escolher(numeros, bytes[8])}${escolher(letras, bytes[9])}`;
 }
 
-function Mensagem({ tipo, texto }: { tipo: "erro" | "ok"; texto: string }) {
+function Mensagem({ tipo, texto, erro }: { tipo: "erro" | "ok"; texto: string; erro?: unknown }) {
+  if (tipo === "erro") return <AvisoErro erro={erro ?? texto} />;
   return (
-    <p role={tipo === "erro" ? "alert" : "status"} className={`rounded-xl border px-3.5 py-2.5 text-[0.8rem] font-semibold ${
-      tipo === "erro" ? "border-red-200 bg-red-50 text-red-700" : "border-leaf-200 bg-leaf-50 text-leaf-800"
-    }`}>
+    <p role="status" className="rounded-xl border border-leaf-200 bg-leaf-50 px-3.5 py-2.5 text-[0.8rem] font-semibold text-leaf-800">
       {texto}
     </p>
   );
 }
 
-async function chamar(url: string, metodo: string, corpo: unknown) {
-  const res = await fetch(url, { method: metodo, headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo) });
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(json?.erro ?? "Não foi possível concluir a operação.");
-  return json;
+function chamar(url: string, metodo: string, corpo: unknown) {
+  return chamarApi<{ id: string }>(url, { method: metodo, json: corpo });
 }
 
 function CampoSenhaTemporaria({ valor, onChange }: { valor: string; onChange: (v: string) => void }) {
@@ -112,7 +110,7 @@ export function UsuarioForm({ usuario, ehProprio = false }: { usuario?: UsuarioE
   const [permissoes, setPermissoes] = useState<Permissao[]>(normalizarPermissoes(usuario?.permissoes ?? PERFIS[0].permissoes));
   const [senha, setSenha] = useState(editando ? "" : gerarSenhaTemporaria());
   const [enviando, setEnviando] = useState<string | null>(null);
-  const [msg, setMsg] = useState<{ tipo: "erro" | "ok"; texto: string } | null>(null);
+  const [msg, setMsg] = useState<{ tipo: "erro" | "ok"; texto: string; erro?: unknown } | null>(null);
   const [novaSenha, setNovaSenha] = useState("");
   const [senhaDefinida, setSenhaDefinida] = useState<string | null>(null);
   const [criado, setCriado] = useState<{ id: string; login: string; senha: string } | null>(null);
@@ -164,7 +162,7 @@ export function UsuarioForm({ usuario, ehProprio = false }: { usuario?: UsuarioE
         return;
       }
     } catch (err) {
-      setMsg({ tipo: "erro", texto: err instanceof Error ? err.message : "Erro ao salvar." });
+      setMsg({ tipo: "erro", texto: "", erro: err });
     }
     setEnviando(null);
   }
@@ -179,7 +177,7 @@ export function UsuarioForm({ usuario, ehProprio = false }: { usuario?: UsuarioE
       setMsg({ tipo: "ok", texto: acao === "desbloquear" ? "Usuário desbloqueado." : acao === "ativar" ? "Usuário reativado." : "Usuário desativado." });
       router.refresh();
     } catch (err) {
-      setMsg({ tipo: "erro", texto: err instanceof Error ? err.message : "Erro." });
+      setMsg({ tipo: "erro", texto: "", erro: err });
     }
     setEnviando(null);
   }
@@ -194,7 +192,7 @@ export function UsuarioForm({ usuario, ehProprio = false }: { usuario?: UsuarioE
       setNovaSenha("");
       router.refresh();
     } catch (err) {
-      setMsg({ tipo: "erro", texto: err instanceof Error ? err.message : "Erro." });
+      setMsg({ tipo: "erro", texto: "", erro: err });
     }
     setEnviando(null);
   }

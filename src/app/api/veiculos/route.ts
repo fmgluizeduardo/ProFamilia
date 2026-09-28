@@ -7,15 +7,17 @@ import { autorizarApi, registrarAuditoria } from "@/lib/auth";
 import { rotuloVeiculo } from "@/lib/frota";
 import { kmReferencia, percursoAberto } from "@/lib/frota-dados";
 import { fmtData } from "@/lib/format";
+import { falhaInterna, rota } from "@/lib/erros-servidor";
 
 /** Registra a saída de um veículo da frota. */
-export async function POST(req: Request) {
+export const POST = rota(async function POST(req: Request) {
   const auth = await autorizarApi(req, "veiculos.registrar");
   if (!auth.ok) return auth.resposta;
 
   let body: Record<string, unknown>;
   try {
     body = await req.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("Corpo não é um objeto JSON.");
   } catch {
     return NextResponse.json({ erro: "Corpo inválido." }, { status: 400 });
   }
@@ -79,7 +81,6 @@ export async function POST(req: Request) {
     });
     return NextResponse.json(criado, { status: 201 });
   } catch (erro) {
-    console.error("Erro ao registrar saída de veículo:", erro);
-    return NextResponse.json({ erro: "Não foi possível registrar a saída. Tente novamente." }, { status: 500 });
+    return falhaInterna(req, erro, { mensagem: "Não foi possível registrar a saída. Tente novamente." });
   }
-}
+});

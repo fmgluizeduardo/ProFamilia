@@ -231,7 +231,31 @@ export const veiculoRegistros = pgTable("veiculo_registros", {
   index("veiculo_registros_veiculo_idx").on(tabela.veiculoId),
 ]);
 
+/**
+ * Registro de falhas do sistema. A `referencia` é exibida ao usuário no aviso
+ * de erro; aqui ficam os detalhes técnicos para o administrador diagnosticar.
+ */
+export const errosSistema = pgTable("erros_sistema", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  referencia: text("referencia").notNull(),
+  codigo: text("codigo").notNull(),
+  mensagem: text("mensagem"),
+  tecnico: text("tecnico"),
+  pilha: text("pilha"),
+  rota: text("rota"),
+  metodo: text("metodo"),
+  usuarioId: uuid("usuario_id").references(() => usuarios.id, { onDelete: "set null" }),
+  usuarioNome: text("usuario_nome"),
+  ip: text("ip"),
+  userAgent: text("user_agent"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  index("erros_sistema_data_idx").on(t.createdAt),
+  index("erros_sistema_referencia_idx").on(t.referencia),
+]);
+
 export type Atendimento = typeof atendimentos.$inferSelect;
+export type ErroSistema = typeof errosSistema.$inferSelect;
 export type NovoAtendimento = typeof atendimentos.$inferInsert;
 export type Evolucao = typeof evolucoes.$inferSelect;
 export type VeiculoRegistro = typeof veiculoRegistros.$inferSelect;

@@ -4,13 +4,15 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, LogIn } from "lucide-react";
 import { CampoSenha } from "@/components/campo-senha";
+import { AvisoErro } from "@/components/aviso-erro";
+import { chamarApi } from "@/lib/api-cliente";
 
 export function FormLogin() {
   const router = useRouter();
   const [login, setLogin] = useState("");
   const [senha, setSenha] = useState("");
   const [lembrar, setLembrar] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
+  const [erro, setErro] = useState<unknown>(null);
   const [enviando, setEnviando] = useState(false);
 
   async function entrar(e: React.FormEvent) {
@@ -22,17 +24,13 @@ export function FormLogin() {
     setEnviando(true);
     setErro(null);
     try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ login: login.trim(), senha, lembrar }),
+      const json = await chamarApi<{ deveTrocarSenha?: boolean }>("/api/auth/login", {
+        json: { login: login.trim(), senha, lembrar },
       });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json?.erro ?? "Não foi possível entrar.");
       router.replace(json.deveTrocarSenha ? "/trocar-senha" : "/");
       router.refresh();
     } catch (err) {
-      setErro(err instanceof Error ? err.message : "Não foi possível entrar.");
+      setErro(err);
       setSenha("");
       setEnviando(false);
     }
@@ -66,14 +64,12 @@ export function FormLogin() {
         />
         <span>
           <strong className="block text-ink-800">Manter conectado neste aparelho</strong>
-          <span className="text-[0.72rem] text-ink-500">Mantém sua sessão por até 30 dias. Use somente em aparelho pessoal, nunca em computador compartilhado.</span>
+          <span className="text-[0.72rem] text-ink-500">
+            Mantém sua sessão por até 30 dias. Use somente em aparelho pessoal, nunca em computador compartilhado.
+          </span>
         </span>
       </label>
-      {erro && (
-        <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-[0.8rem] font-semibold text-red-700">
-          {erro}
-        </p>
-      )}
+      {erro ? <AvisoErro erro={erro} /> : null}
       <button
         type="submit"
         disabled={enviando}
@@ -82,9 +78,7 @@ export function FormLogin() {
         {enviando ? <Loader2 className="h-4.5 w-4.5 animate-spin" /> : <LogIn className="h-4.5 w-4.5" />}
         Entrar
       </button>
-      <p className="text-center text-[0.72rem] text-ink-400">
-        Esqueceu a senha? Peça ao administrador para redefini-la.
-      </p>
+      <p className="text-center text-[0.72rem] text-ink-400">Esqueceu a senha? Peça ao administrador para redefini-la.</p>
     </form>
   );
 }
