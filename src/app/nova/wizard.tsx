@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -206,50 +206,116 @@ export type WizardProps = {
   salva?: string;
 };
 
+/** Tudo o que o aparelho oferece ao restaurar o formulário. */
+type SnapshotAparelho = { rascunho: string | null; hoje: string; agora: string };
+
+let cacheSnapshot: SnapshotAparelho | undefined;
+
+function lerSnapshot(): SnapshotAparelho {
+  // Identidade estável durante a montagem (exigência do useSyncExternalStore);
+  // o valor é relido na montagem seguinte, após a invalidação no desmonte.
+  cacheSnapshot ??= {
+    rascunho: (() => {
+      try {
+        return typeof window === "undefined" ? null : window.localStorage.getItem(DRAFT_KEY);
+      } catch {
+        return null;
+      }
+    })(),
+    hoje: hojeISO(),
+    agora: agoraHM(),
+  };
+  return cacheSnapshot;
+}
+
+function inscreverSnapshot() {
+  // O rascunho é lido uma vez por montagem; não há alterações para assinar.
+  return () => {};
+}
+
+function snapshotServidor(): null {
+  return null;
+}
+
+type Inicial = { form: FormState; etapa: number; restaurado: boolean };
+
+function montarInicial(
+  cliente: SnapshotAparelho | null,
+  edicao: WizardProps["edicao"],
+  usuarioNome: string,
+  usuarioCargo: string | null,
+): Inicial {
+  if (edicao) return { form: edicao.inicial, etapa: 0, restaurado: false };
+
+  // No servidor (e na hidratação) o formulário fica vazio: mesmo HTML nos dois lados.
+  if (cliente === null) return { form: VAZIO, etapa: 0, restaurado: false };
+
+  const { rascunho, hoje, agora } = cliente;
+  if (rascunho) {
+    try {
+      const parsed = JSON.parse(rascunho) as { form: FormState; etapa: number };
+      if (parsed?.form && (parsed.form.nomeCompleto || parsed.form.localAbordagem || parsed.form.motivoAbordagem)) {
+        const form = { ...VAZIO, ...parsed.form };
+        if (!form.idade && form.dataNascimento) {
+          const idade = idadeDe(form.dataNascimento, hoje);
+          if (idade !== null) form.idade = String(idade);
+        }
+        return {
+          form,
+          etapa: Math.min(parsed.etapa ?? 0, ETAPAS.length - 1),
+          restaurado: true,
+        };
+      }
+    } catch {
+      /* rascunho corrompido: começa do zero */
+    }
+  }
+  return {
+    form: {
+      ...VAZIO,
+      dataAtendimento: hoje,
+      horario: agora,
+      profissionalResponsavel: usuarioNome,
+      responsavelNome: usuarioNome,
+      responsavelCargo: usuarioCargo || "",
+    },
+    etapa: 0,
+    restaurado: false,
+  };
+}
+
 export function Wizard({ edicao, usuarioNome, usuarioCargo, salva }: WizardProps) {
   const router = useRouter();
   const editando = !!edicao;
-  const [etapa, setEtapa] = useState(0);
-  const [form, setForm] = useState<FormState>(edicao?.inicial ?? VAZIO);
+  // Snapshot do aparelho disponível só após a hidratação (no servidor é `null`):
+  // mesmo HTML nos dois lados e nenhum estado definido dentro de efeitos.
+  const cliente = useSyncExternalStore(inscreverSnapshot, lerSnapshot, snapshotServidor);
+  const inicial = useMemo(
+    () => montarInicial(cliente, edicao, usuarioNome, usuarioCargo),
+    [cliente, edicao, usuarioNome, usuarioCargo],
+  );
+
+  // O estado guarda apenas o que o usuário alterou; fora isso, vale o inicial.
+  const [alteracoes, setAlteracoes] = useState<{ form: FormState; etapa: number } | null>(null);
+  const [descartado, setDescartado] = useState(false);
   const [erros, setErros] = useState<string[]>([]);
   const [enviando, setEnviando] = useState(false);
   const [erroEnvio, setErroEnvio] = useState<string | null>(null);
-  const [restaurado, setRestaurado] = useState(false);
-  const [hidratado, setHidratado] = useState(false);
   const salvarTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const topoRef = useRef<HTMLDivElement>(null);
 
-  // Hidrata: rascunho salvo ou valores padrão de agora (edição usa os dados da ficha)
-  useEffect(() => {
-    if (editando) {
-      setHidratado(true);
-      return;
-    }
-    try {
-      const raw = localStorage.getItem(DRAFT_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as { form: FormState; etapa: number };
-        if (parsed?.form && (parsed.form.nomeCompleto || parsed.form.localAbordagem || parsed.form.motivoAbordagem)) {
-          setForm({ ...VAZIO, ...parsed.form });
-          setEtapa(Math.min(parsed.etapa ?? 0, ETAPAS.length - 1));
-          setRestaurado(true);
-          setHidratado(true);
-          return;
-        }
-      }
-    } catch {
-      /* ignora */
-    }
-    setForm((f) => ({
-      ...f,
-      dataAtendimento: hojeISO(),
-      horario: agoraHM(),
-      profissionalResponsavel: f.profissionalResponsavel || usuarioNome,
-      responsavelNome: f.responsavelNome || usuarioNome,
-      responsavelCargo: f.responsavelCargo || usuarioCargo || "",
-    }));
-    setHidratado(true);
-  }, [editando, usuarioNome, usuarioCargo]);
+  const form = alteracoes?.form ?? inicial.form;
+  const etapa = alteracoes?.etapa ?? inicial.etapa;
+  const restaurado = inicial.restaurado && !descartado;
+  const hidratado = cliente !== null;
+  // Derivado na renderização (sem useEffect): indica se a idade veio do nascimento.
+  const idadeCalculada =
+    cliente && form.dataNascimento ? idadeDe(form.dataNascimento, cliente.hoje) : null;
+
+  // Ao desmontar, libera a releitura do rascunho na próxima montagem.
+  useEffect(() => () => {
+    cacheSnapshot = undefined;
+  }, []);
 
   // Salvamento automático do rascunho no aparelho (somente em novas fichas)
   useEffect(() => {
@@ -268,26 +334,27 @@ export function Wizard({ edicao, usuarioNome, usuarioCargo, salva }: WizardProps
   }, [form, etapa, hidratado, editando]);
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) => {
-    setForm((f) => ({ ...f, [key]: value }));
+    setAlteracoes((atual) => ({
+      form: { ...(atual?.form ?? inicial.form), [key]: value },
+      etapa: atual?.etapa ?? inicial.etapa,
+    }));
   };
 
   const toggle = (key: keyof FormState, value: string) => {
-    setForm((f) => {
-      const arr = f[key] as string[];
+    setAlteracoes((atual) => {
+      const base = atual?.form ?? inicial.form;
+      const arr = base[key] as string[];
       return {
-        ...f,
-        [key]: arr.includes(value)
-          ? arr.filter((v) => v !== value)
-          : [...arr, value],
+        form: {
+          ...base,
+          [key]: arr.includes(value)
+            ? arr.filter((v) => v !== value)
+            : [...arr, value],
+        },
+        etapa: atual?.etapa ?? inicial.etapa,
       };
     });
   };
-
-  const idadeAuto = useMemo(() => idadeDe(form.dataNascimento), [form.dataNascimento]);
-
-  useEffect(() => {
-    if (idadeAuto !== null) set("idade", String(idadeAuto));
-  }, [idadeAuto]);
 
   const emRua = form.situacaoAtual.includes("Situação de Rua");
 
@@ -312,7 +379,7 @@ export function Wizard({ edicao, usuarioNome, usuarioCargo, salva }: WizardProps
       topoRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       return;
     }
-    setEtapa(idx);
+    setAlteracoes((atual) => ({ form: atual?.form ?? inicial.form, etapa: idx }));
     requestAnimationFrame(() =>
       window.scrollTo({ top: 0, behavior: "smooth" }),
     );
@@ -320,10 +387,12 @@ export function Wizard({ edicao, usuarioNome, usuarioCargo, salva }: WizardProps
 
   function limparRascunho() {
     localStorage.removeItem(DRAFT_KEY);
-    setForm({ ...VAZIO, dataAtendimento: hojeISO(), horario: agoraHM() });
-    setEtapa(0);
+    setAlteracoes({
+      form: { ...VAZIO, dataAtendimento: hojeISO(), horario: agoraHM() },
+      etapa: 0,
+    });
+    setDescartado(true);
     setErros([]);
-    setRestaurado(false);
     window.scrollTo({ top: 0 });
   }
 
@@ -331,7 +400,7 @@ export function Wizard({ edicao, usuarioNome, usuarioCargo, salva }: WizardProps
     const problemas = [...validarEtapa(0), ...validarEtapa(1)];
     if (problemas.length) {
       setErros(problemas);
-      setEtapa(0);
+      setAlteracoes((atual) => ({ form: atual?.form ?? inicial.form, etapa: 0 }));
       return;
     }
     setEnviando(true);
@@ -566,12 +635,18 @@ export function Wizard({ edicao, usuarioNome, usuarioCargo, salva }: WizardProps
                 <TextInput
                   type="date"
                   value={form.dataNascimento}
-                  onChange={(e) => set("dataNascimento", e.target.value)}
+                  onChange={(e) => {
+                    const nascimento = e.target.value;
+                    set("dataNascimento", nascimento);
+                    // Idade calculada na digitação do nascimento (fora da renderização).
+                    const idade = idadeDe(nascimento);
+                    if (idade !== null) set("idade", String(idade));
+                  }}
                 />
               </Field>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Idade" hint={idadeAuto !== null ? "calculada" : undefined}>
+              <Field label="Idade" hint={idadeCalculada !== null ? "calculada" : undefined}>
                 <TextInput
                   type="number"
                   inputMode="numeric"

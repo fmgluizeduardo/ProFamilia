@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { FlagTriangleRight, Loader2, LogIn, Plus, X } from "lucide-react";
 import { agoraHM, hojeISO } from "@/lib/format";
@@ -13,33 +13,44 @@ const inputCls =
 const labelCls =
   "mb-1.5 block text-[0.72rem] font-bold uppercase tracking-[0.1em] text-ink-500";
 
+/** Motorista memorizado no aparelho (vazio no servidor ou sem localStorage). */
+function lerMotoristaSalvo(): string {
+  if (typeof window === "undefined") return "";
+  try {
+    return window.localStorage.getItem(MOTORISTA_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+/** Valores padrão da saída: data/hora atuais, motorista memorizado e último KM. */
+function padroesSaida(ultimoKm: number | null) {
+  return {
+    data: hojeISO(),
+    saidaHora: agoraHM(),
+    motorista: lerMotoristaSalvo(),
+    saidaKm: ultimoKm !== null ? String(ultimoKm) : "",
+  };
+}
+
 export function SaidaForm({ ultimoKm }: { ultimoKm: number | null }) {
   const router = useRouter();
   const [aberto, setAberto] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
-  const [form, setForm] = useState({
-    data: "",
-    motorista: "",
-    saidaHora: "",
-    saidaKm: "",
+  // Inicialização preguiçosa: executa uma única vez na montagem, sem useEffect.
+  // Os campos só aparecem após abrir o painel, então não há divergência de hidratação.
+  const [form, setForm] = useState(() => ({
+    ...padroesSaida(ultimoKm),
     saidaLocal: "",
-  });
+  }));
 
-  useEffect(() => {
-    try {
-      const m = localStorage.getItem(MOTORISTA_KEY);
-      setForm((f) => ({
-        ...f,
-        data: hojeISO(),
-        saidaHora: agoraHM(),
-        motorista: m ?? "",
-        saidaKm: ultimoKm !== null ? String(ultimoKm) : "",
-      }));
-    } catch {
-      /* ignora */
-    }
-  }, [ultimoKm, aberto]);
+  // Ao abrir, atualiza data/hora e KM (a página pode ter ficado aberta por horas
+  // e o último KM muda após cada registro) — mesmo comportamento de antes.
+  function abrirFormulario() {
+    setForm((f) => ({ ...f, ...padroesSaida(ultimoKm) }));
+    setAberto(true);
+  }
 
   async function enviar() {
     setErro(null);
@@ -76,7 +87,7 @@ export function SaidaForm({ ultimoKm }: { ultimoKm: number | null }) {
     return (
       <button
         type="button"
-        onClick={() => setAberto(true)}
+        onClick={abrirFormulario}
         className="inline-flex h-13 w-full items-center justify-center gap-2 rounded-2xl bg-ink-900 text-[0.9rem] font-bold text-white shadow-lift transition-all hover:bg-ink-800 active:scale-[0.99] sm:w-auto sm:px-7"
       >
         <Plus className="h-4.5 w-4.5" />

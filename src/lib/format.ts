@@ -62,14 +62,14 @@ export function agoraHM(): string {
   return `${get("hour")}:${get("minute")}`;
 }
 
-export function idadeDe(dataNascimento?: string | null): number | null {
+export function idadeDe(dataNascimento?: string | null, hoje: string = hojeISO()): number | null {
   if (!dataNascimento) return null;
   const nasc = new Date(`${dataNascimento.slice(0, 10)}T12:00:00`);
   if (Number.isNaN(nasc.getTime())) return null;
-  const hoje = new Date(`${hojeISO()}T12:00:00`);
-  let idade = hoje.getFullYear() - nasc.getFullYear();
-  const m = hoje.getMonth() - nasc.getMonth();
-  if (m < 0 || (m === 0 && hoje.getDate() < nasc.getDate())) idade--;
+  const referencia = new Date(`${hoje}T12:00:00`);
+  let idade = referencia.getFullYear() - nasc.getFullYear();
+  const m = referencia.getMonth() - nasc.getMonth();
+  if (m < 0 || (m === 0 && referencia.getDate() < nasc.getDate())) idade--;
   return idade >= 0 && idade < 130 ? idade : null;
 }
 
