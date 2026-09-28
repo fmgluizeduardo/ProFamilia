@@ -1,0 +1,26 @@
+{
+  "name": "Instituto PróFamília — Abordagem Social",
+  "short_name": "PróFamília",
+  "description": "Registro de fichas de atendimento do Serviço Especializado em Abordagem Social — Barretos/SP.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f6f4ef",
+  "theme_color": "#16222f",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

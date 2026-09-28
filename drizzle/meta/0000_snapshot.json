@@ -1,0 +1,640 @@
+{
+  "id": "c24dfcae-0d02-467c-b3b2-4032de4fc873",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.atendimentos": {
+      "name": "atendimentos",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "numero": {
+          "name": "numero",
+          "type": "serial",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "data_atendimento": {
+          "name": "data_atendimento",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "horario": {
+          "name": "horario",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "local_abordagem": {
+          "name": "local_abordagem",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ponto_referencia": {
+          "name": "ponto_referencia",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "profissional_responsavel": {
+          "name": "profissional_responsavel",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "equipe": {
+          "name": "equipe",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "motivo_abordagem": {
+          "name": "motivo_abordagem",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "motivo_outro": {
+          "name": "motivo_outro",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nome_completo": {
+          "name": "nome_completo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nome_social": {
+          "name": "nome_social",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "data_nascimento": {
+          "name": "data_nascimento",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nome_mae": {
+          "name": "nome_mae",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nome_pai": {
+          "name": "nome_pai",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "idade": {
+          "name": "idade",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "telefone": {
+          "name": "telefone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sexo": {
+          "name": "sexo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sexo_outro": {
+          "name": "sexo_outro",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "estado_civil": {
+          "name": "estado_civil",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "naturalidade": {
+          "name": "naturalidade",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "municipio_origem": {
+          "name": "municipio_origem",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cpf": {
+          "name": "cpf",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rg": {
+          "name": "rg",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "possui_documentacao": {
+          "name": "possui_documentacao",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "situacao_atual": {
+          "name": "situacao_atual",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'"
+        },
+        "situacao_atual_outro": {
+          "name": "situacao_atual_outro",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tempo_situacao": {
+          "name": "tempo_situacao",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rua_tipo": {
+          "name": "rua_tipo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rua_motivo": {
+          "name": "rua_motivo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rua_quanto_tempo": {
+          "name": "rua_quanto_tempo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rua_onde_permanece": {
+          "name": "rua_onde_permanece",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vinculo_preservado": {
+          "name": "vinculo_preservado",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vinculo_familiar": {
+          "name": "vinculo_familiar",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ref_familiar_nome": {
+          "name": "ref_familiar_nome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ref_familiar_telefone": {
+          "name": "ref_familiar_telefone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ref_familiar_municipio": {
+          "name": "ref_familiar_municipio",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "condicao_moradia": {
+          "name": "condicao_moradia",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "condicao_moradia_outro": {
+          "name": "condicao_moradia_outro",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "saude_condicao": {
+          "name": "saude_condicao",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "uso_medicacao": {
+          "name": "uso_medicacao",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "uso_medicacao_qual": {
+          "name": "uso_medicacao_qual",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "atendimento_imediato": {
+          "name": "atendimento_imediato",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "uso_drogas": {
+          "name": "uso_drogas",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "substancias": {
+          "name": "substancias",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'"
+        },
+        "escolaridade": {
+          "name": "escolaridade",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "possui_renda": {
+          "name": "possui_renda",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "origem_renda": {
+          "name": "origem_renda",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "origem_renda_outro": {
+          "name": "origem_renda_outro",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "valor_renda": {
+          "name": "valor_renda",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "beneficios": {
+          "name": "beneficios",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'"
+        },
+        "beneficios_outro": {
+          "name": "beneficios_outro",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "numero_nis": {
+          "name": "numero_nis",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "demandas": {
+          "name": "demandas",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'"
+        },
+        "demandas_outro": {
+          "name": "demandas_outro",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "providencias": {
+          "name": "providencias",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'"
+        },
+        "providencias_outro": {
+          "name": "providencias_outro",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "procedimentos": {
+          "name": "procedimentos",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'"
+        },
+        "encaminhamentos": {
+          "name": "encaminhamentos",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'"
+        },
+        "encaminhamentos_outro": {
+          "name": "encaminhamentos_outro",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "necessita_acompanhamento": {
+          "name": "necessita_acompanhamento",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "acompanhamento_local": {
+          "name": "acompanhamento_local",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "responsavel_nome": {
+          "name": "responsavel_nome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "responsavel_cargo": {
+          "name": "responsavel_cargo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "assinatura_usuario": {
+          "name": "assinatura_usuario",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "atendimentos_data_idx": {
+          "name": "atendimentos_data_idx",
+          "columns": [
+            {
+              "expression": "data_atendimento",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "atendimentos_numero_unique": {
+          "name": "atendimentos_numero_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "numero"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.evolucoes": {
+      "name": "evolucoes",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "atendimento_id": {
+          "name": "atendimento_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "texto": {
+          "name": "texto",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "autor_nome": {
+          "name": "autor_nome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "autor_cargo": {
+          "name": "autor_cargo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "evolucoes_atendimento_idx": {
+          "name": "evolucoes_atendimento_idx",
+          "columns": [
+            {
+              "expression": "atendimento_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "evolucoes_atendimento_id_atendimentos_id_fk": {
+          "name": "evolucoes_atendimento_id_atendimentos_id_fk",
+          "tableFrom": "evolucoes",
+          "tableTo": "atendimentos",
+          "columnsFrom": [
+            "atendimento_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.veiculo_registros": {
+      "name": "veiculo_registros",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "data": {
+          "name": "data",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "veiculo": {
+          "name": "veiculo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'Kombi · DMN 4326'"
+        },
+        "motorista": {
+          "name": "motorista",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "saida_hora": {
+          "name": "saida_hora",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "saida_km": {
+          "name": "saida_km",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "saida_local": {
+          "name": "saida_local",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "chegada_hora": {
+          "name": "chegada_hora",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "chegada_km": {
+          "name": "chegada_km",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "chegada_local": {
+          "name": "chegada_local",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "veiculo_registros_data_idx": {
+          "name": "veiculo_registros_data_idx",
+          "columns": [
+            {
+              "expression": "data",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

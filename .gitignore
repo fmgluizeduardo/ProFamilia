@@ -1,0 +1,32 @@
+# Dependências
+node_modules/
+
+# Build do Next.js
+.next/
+out/
+build/
+*.tsbuildinfo
+
+# Ambiente — NUNCA versionar segredos (DATABASE_URL do Neon fica só local/na Vercel)
+.env
+.env*.local
+.env.development
+.env.production
+
+# Logs
+*.log
+npm-debug.log*
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Drizzle (mantém migrações, ignora artefatos locais)
+drizzle/meta/_journal.json.bak
+
+# VSCode (opcional por máquina)
+.vscode/*
+!.vscode/extensions.json
+
+# Vercel CLI — contém IDs locais do projeto, não versionar
+.vercel/
