@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { asc, desc } from "drizzle-orm";
-import { ChevronRight, KeyRound, Lock, ShieldCheck, UserPlus } from "lucide-react";
+import { CalendarClock, CalendarX, ChevronRight, KeyRound, Lock, ShieldCheck, UserPlus } from "lucide-react";
 import { db } from "@/db";
 import { usuarios } from "@/db/schema";
 import { exigirUsuario } from "@/lib/auth";
-import { fmtDataHora } from "@/lib/format";
+import { fmtData, fmtDataHora, hojeISO } from "@/lib/format";
 import { PERFIS, normalizarPermissoes } from "@/lib/permissoes";
 import { AbasAdmin } from "./abas";
 
@@ -26,6 +26,7 @@ export default async function UsuariosPage() {
   const atual = await exigirUsuario("admin");
   const lista = await db.select().from(usuarios).orderBy(desc(usuarios.ativo), asc(usuarios.nome));
   const agora = new Date();
+  const hoje = hojeISO();
   const ativos = lista.filter((u) => u.ativo).length;
 
   return (
@@ -64,6 +65,9 @@ export default async function UsuariosPage() {
                   {!u.ativo && <span className="rounded bg-ink-200 px-1.5 py-0.5 text-[0.6rem] font-bold uppercase text-ink-600">Desativado</span>}
                   {bloqueado && <span className="inline-flex items-center gap-1 rounded bg-red-100 px-1.5 py-0.5 text-[0.6rem] font-bold uppercase text-red-700"><Lock className="h-2.5 w-2.5" /> Bloqueado</span>}
                   {u.ativo && u.deveTrocarSenha && <span className="inline-flex items-center gap-1 rounded bg-sun-100 px-1.5 py-0.5 text-[0.6rem] font-bold uppercase text-sun-700"><KeyRound className="h-2.5 w-2.5" /> Aguardando 1º acesso</span>}
+                  {u.acessoAte && (u.acessoAte < hoje
+                    ? <span className="inline-flex items-center gap-1 rounded bg-red-100 px-1.5 py-0.5 text-[0.6rem] font-bold uppercase text-red-700"><CalendarX className="h-2.5 w-2.5" /> Acesso expirado</span>
+                    : <span className="inline-flex items-center gap-1 rounded bg-brand-100 px-1.5 py-0.5 text-[0.6rem] font-bold uppercase text-brand-700"><CalendarClock className="h-2.5 w-2.5" /> Até {fmtData(u.acessoAte)}</span>)}
                 </p>
                 <p className="mt-0.5 text-[0.74rem] text-ink-400">
                   <span className="font-mono">@{u.login}</span>

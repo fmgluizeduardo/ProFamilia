@@ -265,7 +265,7 @@ export default async function ManualPage() {
         <Passo
           n="1"
           titulo="Registrar a saída"
-          texto="Toque em “Registrar saída do veículo”, confira data e hora, informe o motorista, o KM do hodômetro e o destino da ronda."
+          texto="Toque em “Registrar saída de veículo”, escolha o veículo da frota (os que estão em rota aparecem bloqueados), confira data e hora, informe o motorista, o KM do hodômetro e o destino da ronda. Vários veículos podem estar em rota ao mesmo tempo."
         />
         <Passo
           n="2"
@@ -276,6 +276,11 @@ export default async function ManualPage() {
           n="3"
           titulo="Registrar a chegada"
           texto="No mesmo banner, informe hora, KM atual e local de chegada, e toque em “Concluir percurso”. O sistema calcula os quilômetros rodados."
+        />
+        <Passo
+          n="4"
+          titulo="Frota e correções"
+          texto="Na aba “Frota” você consulta cada veículo (placa, KM atual, saídas, último uso). Conforme a sua permissão, é possível cadastrar veículos, editar seus dados, desativá-los (o histórico é mantido) e corrigir lançamentos pelo ícone de lápis no histórico — toda correção fica registrada na auditoria."
         />
         <Atencao>
           O KM de saída nunca pode ser menor que o último registro do veículo,
@@ -391,6 +396,8 @@ export default async function ManualPage() {
         <Passo n="2" titulo="Alterar a senha a qualquer momento" texto="Toque no seu nome (no topo, no celular; embaixo do menu, no computador) → “Alterar minha senha”. Os outros aparelhos conectados serão desconectados por segurança." />
         <Passo n="2" titulo="Sair do sistema" texto="Toque no seu nome → “Sair”. Faça isso sempre em computadores compartilhados. A sessão também expira sozinha após 12 horas." />
         <Passo n="3" titulo="O que eu posso fazer?" texto="O menu mostra apenas as áreas liberadas para o seu perfil. Botões como Editar e Excluir só aparecem para quem tem essa permissão. Se precisar de um acesso, peça ao administrador." />
+        <Passo n="5" titulo="Minha conta e acessos" texto="Toque no seu nome → “Minha conta e acessos” para ver exatamente o que o seu perfil permite, a validade do seu acesso e os aparelhos conectados — com a opção de encerrar as sessões dos outros aparelhos." />
+        <Passo n="6" titulo="Fichas que você vê" texto="Dependendo do perfil, você vê as fichas de toda a equipe ou somente as que você cadastrou. Nesse segundo caso, a tela de Fichas avisa isso no topo." />
         <Atencao>
           Após <strong>5 senhas erradas seguidas</strong>, o acesso fica bloqueado por 15 minutos. Esqueceu a senha? O
           administrador pode redefini-la. Nunca compartilhe sua senha: tudo o que é registrado fica em seu nome.
@@ -406,6 +413,9 @@ export default async function ManualPage() {
         <Passo n="2" titulo="Novo usuário" texto="Informe nome, usuário de acesso e cargo; escolha um perfil pronto (Equipe de campo, Coordenação, Motorista ou Somente leitura) e ajuste as permissões por módulo. Gere a senha temporária e entregue pessoalmente — ela aparece uma única vez." />
         <Passo n="3" titulo="Manutenção" texto="Na ficha do usuário é possível alterar permissões (valem na hora), redefinir a senha, desbloquear após tentativas erradas e desativar o acesso. Usuários não são excluídos: a desativação preserva a autoria dos registros." />
         <Passo n="4" titulo="Auditoria" texto="A aba Auditoria mostra quem entrou, cadastrou, editou, excluiu ou exportou dados, com data, hora e origem. Use os filtros por usuário, tipo de ação e período." />
+        <Passo n="5" titulo="Escopo das fichas" texto="A permissão “Fichas: Toda a equipe” libera as fichas de todos os profissionais. Sem ela, o usuário vê, edita e evolui apenas as fichas que ele cadastrou. Relatórios nominais (PDF Completo/Prontuários e CSV) exigem essa permissão." />
+        <Passo n="6" titulo="Acesso temporário" texto="Para reforços sazonais (ex.: Festa do Peão) ou estagiários, use o perfil “Apoio temporário” e defina “Acesso válido até”. Após a data, o acesso é bloqueado automaticamente. Administradores nunca expiram." />
+        <Passo n="7" titulo="Sessões e matriz de acessos" texto="Na ficha do usuário, veja os aparelhos conectados e encerre as sessões (ex.: celular perdido). A aba “Matriz de acessos” mostra todos os usuários ativos × permissões para revisões periódicas." />
         <Dica>
           Conceda o mínimo necessário para cada função. Permissões de <strong>excluir</strong> e de{" "}
           <strong>exportar relatórios</strong> devem ficar restritas à coordenação.

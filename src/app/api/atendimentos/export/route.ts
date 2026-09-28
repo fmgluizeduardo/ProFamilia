@@ -4,7 +4,9 @@ import { atendimentos } from "@/db/schema";
 import { fmtData, labelSN, moedaBR } from "@/lib/format";
 import { USO_DROGAS } from "@/lib/constants";
 import { dataReal } from "@/lib/validacoes";
+import { NextResponse } from "next/server";
 import { autorizarApi, registrarAuditoria } from "@/lib/auth";
+import { veTodasAsFichas } from "@/lib/escopo";
 
 function csvCampo(v: string | number | null | undefined): string {
   if (v === null || v === undefined || v === "") return "";
@@ -16,6 +18,13 @@ function csvCampo(v: string | number | null | undefined): string {
 export async function GET(req: Request) {
   const auth = await autorizarApi(req, "relatorios.exportar");
   if (!auth.ok) return auth.resposta;
+  // A planilha é nominal (todas as fichas): exige acesso às fichas de toda a equipe.
+  if (!veTodasAsFichas(auth.usuario)) {
+    return NextResponse.json(
+      { erro: "A exportação nominal exige acesso às fichas de toda a equipe.", codigo: "PERMISSAO" },
+      { status: 403 },
+    );
+  }
   const url = new URL(req.url);
   const de = url.searchParams.get("de");
   const ate = url.searchParams.get("ate");

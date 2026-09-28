@@ -20,6 +20,7 @@ import { atendimentos, veiculoRegistros } from "@/db/schema";
 import { fmtDataHora, hojeISO } from "@/lib/format";
 import { FichaCard } from "@/components/ficha-card";
 import { exigirUsuario } from "@/lib/auth";
+import { filtroEscopoFichas } from "@/lib/escopo";
 import { temPermissao } from "@/lib/permissoes";
 
 export const dynamic = "force-dynamic";
@@ -73,6 +74,7 @@ export default async function HomePage() {
       db
         .select()
         .from(atendimentos)
+        .where(filtroEscopoFichas(usuario))
         .orderBy(desc(atendimentos.createdAt))
         .limit(5),
     ]);

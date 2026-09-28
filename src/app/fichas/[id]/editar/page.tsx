@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { atendimentos, type Atendimento } from "@/db/schema";
 import { exigirUsuario } from "@/lib/auth";
+import { fichaNoEscopo } from "@/lib/escopo";
 import { uuidValido } from "@/lib/validacoes";
 import { Wizard, type FormState } from "../../../nova/wizard";
 
@@ -85,7 +86,7 @@ export default async function EditarFichaPage({ params }: { params: Promise<{ id
   const { id } = await params;
   if (!uuidValido(id)) notFound();
   const [ficha] = await db.select().from(atendimentos).where(eq(atendimentos.id, id)).limit(1);
-  if (!ficha) notFound();
+  if (!ficha || !fichaNoEscopo(usuario, ficha)) notFound();
 
   return (
     <Wizard

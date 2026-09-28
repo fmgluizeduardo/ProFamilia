@@ -12,6 +12,7 @@ import {
   registrarAuditoria,
 } from "@/lib/auth";
 import { obterHashFicticio, verificarSenha } from "@/lib/senha";
+import { fmtData, hojeISO } from "@/lib/format";
 
 const ERRO_GENERICO = "Usuário ou senha inválidos.";
 
@@ -72,6 +73,14 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { erro: bloquear ? "Muitas tentativas incorretas. Acesso bloqueado por 15 minutos." : ERRO_GENERICO },
         { status: bloquear ? 429 : 401 },
+      );
+    }
+
+    if (usuario.acessoAte && usuario.acessoAte < hojeISO()) {
+      await registrarAuditoria({ usuario, acao: "login.falha", detalhes: `Acesso expirado em ${fmtData(usuario.acessoAte)}`, req });
+      return NextResponse.json(
+        { erro: `Seu acesso expirou em ${fmtData(usuario.acessoAte)}. Fale com o administrador para renová-lo.` },
+        { status: 403 },
       );
     }
 

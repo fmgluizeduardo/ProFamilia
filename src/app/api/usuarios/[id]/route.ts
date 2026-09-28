@@ -6,6 +6,7 @@ import { autorizarApi, encerrarSessoesDoUsuario, registrarAuditoria } from "@/li
 import {
   LIMITE_NOME,
   descreverMudancas,
+  lerValidade,
   outrosAdminsAtivos,
   papelValido,
   permissoesParaPapel,
@@ -31,6 +32,16 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   const ehProprio = alvo.id === auth.usuario.id;
 
+  // Ação isolada: encerrar as sessões abertas (ex.: aparelho perdido ou compartilhado).
+  if (body.acao === "encerrar_sessoes") {
+    await encerrarSessoesDoUsuario(id, ehProprio ? auth.usuario.sessaoId : undefined);
+    await registrarAuditoria({
+      usuario: auth.usuario, acao: "usuario.sessoes_encerradas", entidade: "usuario", entidadeId: id,
+      detalhes: `@${alvo.login}${ehProprio ? " (exceto a sessão atual)" : ""}`, req,
+    });
+    return NextResponse.json({ ok: true });
+  }
+
   // Ação isolada: desbloquear após tentativas excessivas.
   if (body.acao === "desbloquear") {
     await db.update(usuarios).set({ tentativasFalhas: 0, bloqueadoAte: null, updatedAt: new Date() }).where(eq(usuarios.id, id));
@@ -44,6 +55,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const papel = body.papel !== undefined ? papelValido(body.papel) : (alvo.papel as "admin" | "usuario");
   if (!papel) return NextResponse.json({ erro: "Papel inválido." }, { status: 422 });
   const ativo = typeof body.ativo === "boolean" ? body.ativo : alvo.ativo;
+  const validade = body.acessoAte !== undefined ? lerValidade(body.acessoAte) : alvo.acessoAte;
+  if (validade === false) return NextResponse.json({ erro: "Data de validade do acesso inválida." }, { status: 422 });
+  // Administradores não expiram: evita que o sistema fique sem quem o administre.
+  const acessoAte = papel === "admin" ? null : validade;
   const permissoes = body.permissoes !== undefined || papel !== alvo.papel
     ? permissoesParaPapel(papel, body.permissoes ?? alvo.permissoes)
     : alvo.permissoes;
@@ -63,8 +78,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ erro: "Selecione ao menos uma permissão para usuários ativos." }, { status: 422 });
   }
 
-  const antes = { nome: alvo.nome, cargo: alvo.cargo, papel: alvo.papel, ativo: alvo.ativo, permissoes: alvo.permissoes };
-  const depois = { nome, cargo, papel, ativo, permissoes };
+  const antes = { nome: alvo.nome, cargo: alvo.cargo, papel: alvo.papel, ativo: alvo.ativo, permissoes: alvo.permissoes, acessoAte: alvo.acessoAte };
+  const depois = { nome, cargo, papel, ativo, permissoes, acessoAte };
 
   await db.update(usuarios).set({ ...depois, updatedAt: new Date() }).where(eq(usuarios.id, id));
 

@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   BookOpen,
   ChevronDown,
+  CircleUserRound,
   ClipboardPlus,
   Files,
   House,
@@ -134,6 +135,9 @@ function MenuConta({ usuario, escuro = false }: { usuario: UsuarioShell; escuro?
               <UsersRound className="h-4 w-4 text-ink-400" /> Usuários e acessos
             </Link>
           )}
+          <Link role="menuitem" href="/conta" onClick={() => setAberto(false)} className="flex items-center gap-2.5 px-4 py-2.5 text-[0.82rem] font-semibold text-ink-700 hover:bg-ink-50">
+            <CircleUserRound className="h-4 w-4 text-ink-400" /> Minha conta e acessos
+          </Link>
           <Link role="menuitem" href="/trocar-senha" onClick={() => setAberto(false)} className="flex items-center gap-2.5 px-4 py-2.5 text-[0.82rem] font-semibold text-ink-700 hover:bg-ink-50">
             <KeyRound className="h-4 w-4 text-ink-400" /> Alterar minha senha
           </Link>

@@ -19,6 +19,7 @@ import {
 import { Donut, HBars, VBars } from "@/components/charts";
 import { ReportActions } from "@/components/report-actions";
 import { exigirUsuario } from "@/lib/auth";
+import { veTodasAsFichas } from "@/lib/escopo";
 import { temPermissao } from "@/lib/permissoes";
 import {
   carregarDadosRelatorio,
@@ -90,7 +91,9 @@ export default async function GerenciaPage({
   const hoje = hojeISO();
   const dados = await carregarDadosRelatorio(periodo);
   const r = resumirRelatorio(dados);
-  const fichas = dados.fichas;
+  // Indicadores são estatísticos (todos os registros); a lista nominal respeita o escopo.
+  const veTodas = veTodasAsFichas(usuario);
+  const fichas = veTodas ? dados.fichas : dados.fichas.filter((f) => f.criadoPorId === usuario.id);
   const csvHref = `/api/atendimentos/export?de=${de}&ate=${ate}`;
 
   const kpis = [
@@ -180,7 +183,7 @@ export default async function GerenciaPage({
 
       <div id="relatorios" className="scroll-mt-8">
         {podeExportar ? (
-          <ReportActions periodo={periodo} totalFichas={r.total} />
+          <ReportActions periodo={periodo} totalFichas={r.total} podeNominais={veTodas} />
         ) : (
           <p className="rounded-2xl border border-ink-100 bg-card px-4 py-3 text-[0.8rem] text-ink-500 shadow-card">
             A emissão de relatórios PDF e da planilha CSV depende de permissão de exportação. Solicite ao administrador, se necessário.

@@ -12,6 +12,12 @@ export const ROTULOS_ACAO: Record<string, string> = {
   "veiculo.saida": "Registrou saída de veículo",
   "veiculo.chegada": "Registrou chegada de veículo",
   "veiculo.excluido": "Excluiu lançamento de veículo",
+  "veiculo.editado": "Corrigiu lançamento de veículo",
+  "frota.criado": "Cadastrou veículo na frota",
+  "frota.editado": "Editou veículo da frota",
+  "frota.desativado": "Desativou veículo da frota",
+  "frota.reativado": "Reativou veículo da frota",
+  "usuario.sessoes_encerradas": "Encerrou sessões",
   "relatorio.pdf": "Gerou relatório PDF",
   "relatorio.csv": "Exportou planilha CSV",
   "usuario.criado": "Criou usuário",
@@ -27,7 +33,7 @@ export function rotuloAcao(acao: string): string {
 }
 
 export function tomAcao(acao: string): string {
-  if (acao.endsWith("excluida") || acao.endsWith("excluido") || acao === "login.bloqueio" || acao === "usuario.desativado") {
+  if (acao.endsWith("excluida") || acao.endsWith("excluido") || acao.endsWith("desativado") || acao === "login.bloqueio") {
     return "bg-red-100 text-red-700";
   }
   if (acao === "login.falha") return "bg-sun-100 text-sun-700";

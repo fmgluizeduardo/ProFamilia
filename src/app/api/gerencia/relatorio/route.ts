@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { carregarDadosRelatorio, resolverPeriodo, TIPOS_RELATORIO, type TipoRelatorio } from "@/lib/relatorios";
 import { gerarRelatorioPdf } from "@/lib/gerar-relatorio-pdf";
 import { autorizarApi, registrarAuditoria } from "@/lib/auth";
+import { veTodasAsFichas } from "@/lib/escopo";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,6 +29,13 @@ export async function GET(req: Request) {
     );
   }
   const tipo = tipoRaw as TipoRelatorio;
+  // Relatórios com dados pessoais exigem acesso às fichas de toda a equipe.
+  if ((tipo === "completo" || tipo === "fichas") && !veTodasAsFichas(auth.usuario)) {
+    return NextResponse.json(
+      { erro: "Relatórios nominais exigem acesso às fichas de toda a equipe.", codigo: "PERMISSAO" },
+      { status: 403 },
+    );
+  }
   const baixar = searchParams.get("baixar") === "1";
 
   try {

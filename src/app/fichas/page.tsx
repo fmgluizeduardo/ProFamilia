@@ -7,6 +7,7 @@ import { atendimentos } from "@/db/schema";
 import { MOTIVOS, SITUACOES } from "@/lib/constants";
 import { dataReal } from "@/lib/validacoes";
 import { exigirUsuario } from "@/lib/auth";
+import { filtroEscopoFichas, veTodasAsFichas } from "@/lib/escopo";
 import { FichaCard } from "@/components/ficha-card";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +21,8 @@ export default async function FichasPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  await exigirUsuario("fichas.ver");
+  const usuario = await exigirUsuario("fichas.ver");
+  const somenteProprias = !veTodasAsFichas(usuario);
   const sp = await searchParams;
   const q = typeof sp.q === "string" ? sp.q.trim() : "";
   const situacao = typeof sp.situacao === "string" ? sp.situacao : "";
@@ -30,6 +32,9 @@ export default async function FichasPage({
   const ate = dataReal(sp.ate) ? sp.ate : "";
 
   const condicoes: SQL[] = [];
+  // Escopo: sem acesso a toda a equipe, lista somente as fichas cadastradas pelo usuário.
+  const escopo = filtroEscopoFichas(usuario);
+  if (escopo) condicoes.push(escopo);
   if (q) {
     // Remove caracteres com significado especial em LIKE e na busca.
     const like = `%${q.replace(/[%_\\]/g, " ")}%`;
@@ -72,6 +77,11 @@ export default async function FichasPage({
           <h1 className="font-display mt-1 text-2xl font-bold tracking-tight text-ink-900 sm:text-3xl">
             Fichas de atendimento
           </h1>
+          {somenteProprias && (
+            <p className="mt-1 text-[0.78rem] font-semibold text-ink-500">
+              Seu perfil exibe somente as fichas que você cadastrou.
+            </p>
+          )}
         </div>
         <span className="rounded-full border border-ink-100 bg-card px-3.5 py-1.5 text-[0.72rem] font-bold text-ink-500">
           {fichas.length} {fichas.length === 1 ? "ficha" : "fichas"}

@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { desc, eq } from "drizzle-orm";
-import { ArrowLeft, ScrollText } from "lucide-react";
+import { ArrowLeft, MonitorSmartphone, ScrollText } from "lucide-react";
+import { SessoesLista } from "@/components/sessoes-lista";
+import { listarSessoesAtivas } from "@/lib/sessoes-dados";
 import { db } from "@/db";
 import { auditoria, usuarios } from "@/db/schema";
 import { exigirUsuario } from "@/lib/auth";
@@ -22,7 +24,10 @@ export default async function EditarUsuarioPage({ params }: { params: Promise<{ 
   const [u] = await db.select().from(usuarios).where(eq(usuarios.id, id)).limit(1);
   if (!u) notFound();
 
-  const atividade = await db.select().from(auditoria).where(eq(auditoria.usuarioId, id)).orderBy(desc(auditoria.createdAt)).limit(12);
+  const [atividade, sessoesAtivas] = await Promise.all([
+    db.select().from(auditoria).where(eq(auditoria.usuarioId, id)).orderBy(desc(auditoria.createdAt)).limit(12),
+    listarSessoesAtivas(id, u.id === atual.id ? atual.sessaoId : undefined),
+  ]);
 
   return (
     <div className="mx-auto max-w-4xl space-y-5">
@@ -45,8 +50,25 @@ export default async function EditarUsuarioPage({ params }: { params: Promise<{ 
           permissoes: u.permissoes, ativo: u.ativo,
           bloqueado: !!u.bloqueadoAte && u.bloqueadoAte > new Date(),
           deveTrocarSenha: u.deveTrocarSenha,
+          acessoAte: u.acessoAte,
         }}
       />
+
+      <section className="rounded-2xl border border-ink-100/80 bg-card p-5 shadow-card sm:p-6">
+        <h2 className="flex items-center gap-2 font-display text-[0.98rem] font-bold text-ink-900">
+          <MonitorSmartphone className="h-4.5 w-4.5 text-brand-600" /> Sessões ativas ({sessoesAtivas.length})
+        </h2>
+        <p className="mt-1 text-[0.8rem] text-ink-500">
+          Aparelhos conectados com esta conta. Encerre em caso de celular perdido, troca de função ou suspeita de uso indevido.
+        </p>
+        <div className="mt-3">
+          <SessoesLista
+            sessoes={sessoesAtivas}
+            acao={{ url: `/api/usuarios/${u.id}`, metodo: "PATCH", corpo: { acao: "encerrar_sessoes" } }}
+            rotuloBotao={u.id === atual.id ? "Encerrar minhas outras sessões" : "Encerrar todas as sessões"}
+          />
+        </div>
+      </section>
 
       <section className="rounded-2xl border border-ink-100/80 bg-card p-5 shadow-card sm:p-6">
         <h2 className="flex items-center gap-2 font-display text-[0.98rem] font-bold text-ink-900">

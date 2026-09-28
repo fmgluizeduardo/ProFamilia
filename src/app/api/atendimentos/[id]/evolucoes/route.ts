@@ -5,6 +5,7 @@ import { atendimentos, evolucoes } from "@/db/schema";
 import { autorizarApi, registrarAuditoria } from "@/lib/auth";
 import { numeroAtendimento } from "@/lib/format";
 import { texto, uuidValido } from "@/lib/validacoes";
+import { fichaNoEscopo } from "@/lib/escopo";
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await autorizarApi(req, "evolucoes.criar");
@@ -27,11 +28,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
 
   const [ficha] = await db
-    .select({ id: atendimentos.id, numero: atendimentos.numero })
+    .select({ id: atendimentos.id, numero: atendimentos.numero, criadoPorId: atendimentos.criadoPorId })
     .from(atendimentos)
     .where(eq(atendimentos.id, id))
     .limit(1);
-  if (!ficha) return NextResponse.json({ erro: "Ficha não encontrada." }, { status: 404 });
+  if (!ficha || !fichaNoEscopo(usuario, ficha)) {
+    return NextResponse.json({ erro: "Ficha não encontrada." }, { status: 404 });
+  }
 
   try {
     // Autoria vem da sessão, nunca do formulário: não é possível registrar em nome de outra pessoa.

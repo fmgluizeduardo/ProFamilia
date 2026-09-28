@@ -22,16 +22,23 @@ const OPCOES = [
 /** Acima disso o PDF nominal ficaria lento demais; o CSV continua imediato. */
 const LIMITE_FICHAS_PDF = 1500;
 
+const NOMINAIS: TipoRelatorio[] = ["completo", "fichas"];
+
 export function ReportActions({
   periodo,
   totalFichas,
+  podeNominais,
 }: {
   periodo: Periodo;
   totalFichas: number;
+  /** Relatórios com dados pessoais exigem acesso às fichas de toda a equipe. */
+  podeNominais: boolean;
 }) {
-  const [tipo, setTipo] = useState<TipoRelatorio>("completo");
+  const [tipo, setTipo] = useState<TipoRelatorio>(podeNominais ? "completo" : "indicadores");
   const bloqueiaNominais = totalFichas > LIMITE_FICHAS_PDF;
-  const bloqueado = bloqueiaNominais && tipo !== "indicadores";
+  const indisponivel = (t: TipoRelatorio) =>
+    (bloqueiaNominais && t !== "indicadores") || (!podeNominais && NOMINAIS.includes(t));
+  const bloqueado = indisponivel(tipo);
   const base = `/api/gerencia/relatorio?de=${periodo.de}&ate=${periodo.ate}&tipo=${tipo}`;
 
   return (
@@ -61,7 +68,7 @@ export function ReportActions({
                 key={escolha}
                 type="button"
                 aria-pressed={ativo}
-                disabled={bloqueiaNominais && escolha !== "indicadores"}
+                disabled={indisponivel(escolha)}
                 onClick={() => setTipo(escolha)}
                 className={`group flex items-center gap-3 rounded-xl border p-3 text-left transition-all active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45 ${
                   ativo && !bloqueado
@@ -91,6 +98,12 @@ export function ReportActions({
           {TIPOS_RELATORIO[tipo].descricao}
         </p>
 
+        {!podeNominais && (
+          <div className="mt-3 rounded-lg border border-ink-200 bg-ink-50 px-3 py-2.5 text-[0.75rem] leading-relaxed text-ink-600">
+            Relatórios com dados pessoais (Completo e Prontuários) exigem acesso às fichas de toda a equipe.
+            Você pode emitir os relatórios de Indicadores e de Veículo.
+          </div>
+        )}
         {bloqueiaNominais && (
           <div className="mt-3 rounded-lg border border-sun-300 bg-sun-50 px-3 py-2.5 text-[0.75rem] leading-relaxed text-sun-800">
             Este período tem <strong>{totalFichas.toLocaleString("pt-BR")} fichas</strong> e os

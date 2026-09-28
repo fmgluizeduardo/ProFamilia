@@ -69,6 +69,14 @@ registre — data/hora são automáticas. Registre a evolução no mesmo dia do 
 O KM nunca pode regredir: saída menor que o último registro, ou chegada menor
 que a saída, é recusada — confira o hodômetro.
 
+### Frota (aba “Frota”)
+
+Cada veículo mostra placa, KM atual, número de saídas e último uso. Conforme a
+permissão: **cadastrar** veículos, **editar** dados (modelo, placa, ano, cor, KM
+inicial, observações), **desativar/reativar** (o histórico é mantido) e **corrigir
+lançamentos** pelo lápis no histórico. Na saída, escolha o veículo; vários podem
+estar em rota ao mesmo tempo.
+
 ## 6. Impressão da ficha
 
 Dentro da ficha, **“Versão para impressão”** abre o documento formal
@@ -118,6 +126,10 @@ julgamentos.
   computador). Em equipamento compartilhado, sempre use “Sair” ao terminar.
 - O menu mostra só as áreas liberadas; botões **Editar/Excluir** só aparecem para quem tem
   permissão. Precisa de um acesso? Peça ao administrador.
+- **Minha conta e acessos:** toque no seu nome para ver o que o seu perfil permite,
+  a validade do seu acesso e os aparelhos conectados (com opção de encerrar os outros).
+- **Fichas que você vê:** conforme o perfil, as de toda a equipe ou só as que você
+  cadastrou (a tela de Fichas avisa).
 - **5 senhas erradas** bloqueiam o acesso por 15 minutos (ou até o administrador desbloquear).
 - Tudo o que você registra fica em seu nome — nunca compartilhe a senha.
 
@@ -130,7 +142,12 @@ julgamentos.
    entregue pessoalmente — ela aparece uma única vez.
 3. **Manutenção:** alterar permissões (valem imediatamente), redefinir senha, desbloquear,
    desativar. Usuários não são excluídos, para preservar a autoria dos registros.
-4. **Auditoria:** histórico de acessos, cadastros, edições, exclusões e exportações, com
+4. **Escopo, validade e sessões:** “Fichas: Toda a equipe” libera as fichas de todos;
+   sem ela, só as próprias (relatórios nominais e CSV exigem essa permissão). Use
+   “Apoio temporário” + “Acesso válido até” para reforços sazonais (bloqueio automático).
+   Na ficha do usuário, veja e encerre sessões; a aba **Matriz de acessos** resume quem
+   pode o quê.
+5. **Auditoria:** histórico de acessos, cadastros, edições, exclusões e exportações, com
    filtros por usuário, ação e período.
 
 Boa prática: conceda o mínimo necessário. Excluir e exportar devem ficar com a coordenação.

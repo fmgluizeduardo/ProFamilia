@@ -16,6 +16,7 @@ import {
 } from "@/lib/format";
 import { uuidValido } from "@/lib/validacoes";
 import { exigirUsuario } from "@/lib/auth";
+import { fichaNoEscopo } from "@/lib/escopo";
 import { BotaoImprimir } from "./botao-imprimir";
 
 export const dynamic = "force-dynamic";
@@ -75,7 +76,7 @@ export default async function ImprimirPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await exigirUsuario("fichas.ver");
+  const usuario = await exigirUsuario("fichas.ver");
   const { id } = await params;
 
   if (!uuidValido(id)) notFound();
@@ -85,7 +86,7 @@ export default async function ImprimirPage({
     .from(atendimentos)
     .where(eq(atendimentos.id, id))
     .limit(1);
-  if (!f) notFound();
+  if (!f || !fichaNoEscopo(usuario, f)) notFound();
 
   const evos = await db
     .select()

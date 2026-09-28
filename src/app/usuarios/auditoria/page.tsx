@@ -18,7 +18,8 @@ const GRUPOS = [
   { v: "login", r: "Acessos (login/logout)" },
   { v: "ficha", r: "Fichas" },
   { v: "evolucao", r: "Evoluções" },
-  { v: "veiculo", r: "Veículo" },
+  { v: "veiculo", r: "Percursos de veículo" },
+  { v: "frota", r: "Frota (cadastro de veículos)" },
   { v: "relatorio", r: "Relatórios e exportações" },
   { v: "usuario", r: "Gestão de usuários" },
 ];

@@ -4,18 +4,25 @@ import { db } from "@/db";
 import { atendimentos, evolucoes } from "@/db/schema";
 import { autorizarApi, registrarAuditoria } from "@/lib/auth";
 import { normalizarFicha } from "@/lib/ficha-dados";
+import { fichaNoEscopo } from "@/lib/escopo";
 import { numeroAtendimento } from "@/lib/format";
 import { uuidValido } from "@/lib/validacoes";
 
 type Contexto = { params: Promise<{ id: string }> };
 
-async function buscar(id: string) {
+async function buscar(id: string, usuario: Parameters<typeof fichaNoEscopo>[0]) {
   const [ficha] = await db
-    .select({ id: atendimentos.id, numero: atendimentos.numero, nome: atendimentos.nomeCompleto })
+    .select({
+      id: atendimentos.id,
+      numero: atendimentos.numero,
+      nome: atendimentos.nomeCompleto,
+      criadoPorId: atendimentos.criadoPorId,
+    })
     .from(atendimentos)
     .where(eq(atendimentos.id, id))
     .limit(1);
-  return ficha ?? null;
+  // Fora do escopo, a ficha é tratada como inexistente.
+  return ficha && fichaNoEscopo(usuario, ficha) ? ficha : null;
 }
 
 /** Edição completa da ficha (mesma validação do cadastro). */
@@ -25,7 +32,7 @@ export async function PUT(req: Request, { params }: Contexto) {
   const { id } = await params;
   if (!uuidValido(id)) return NextResponse.json({ erro: "Ficha não encontrada." }, { status: 404 });
 
-  const existente = await buscar(id);
+  const existente = await buscar(id, auth.usuario);
   if (!existente) return NextResponse.json({ erro: "Ficha não encontrada." }, { status: 404 });
 
   let body: Record<string, unknown>;
@@ -62,7 +69,7 @@ export async function DELETE(req: Request, { params }: Contexto) {
   const { id } = await params;
   if (!uuidValido(id)) return NextResponse.json({ erro: "Ficha não encontrada." }, { status: 404 });
 
-  const existente = await buscar(id);
+  const existente = await buscar(id, auth.usuario);
   if (!existente) return NextResponse.json({ erro: "Ficha não encontrada." }, { status: 404 });
 
   try {

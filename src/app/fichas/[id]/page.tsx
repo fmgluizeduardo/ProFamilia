@@ -30,6 +30,7 @@ import {
 } from "@/lib/format";
 import { uuidValido } from "@/lib/validacoes";
 import { exigirUsuario } from "@/lib/auth";
+import { fichaNoEscopo } from "@/lib/escopo";
 import { temPermissao } from "@/lib/permissoes";
 import { BotaoExcluir } from "@/components/botao-excluir";
 import { EvolucaoForm } from "./evolucao-form";
@@ -137,7 +138,8 @@ export default async function FichaPage({
     .where(eq(atendimentos.id, id))
     .limit(1);
 
-  if (!ficha) notFound();
+  // Fora do escopo do usuário, responde como inexistente (não revela que a ficha existe).
+  if (!ficha || !fichaNoEscopo(usuario, ficha)) notFound();
 
   const evos = await db
     .select()

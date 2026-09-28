@@ -3,7 +3,8 @@ import { cache } from "react";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { NextResponse } from "next/server";
-import { and, count, eq, gt, lt } from "drizzle-orm";
+import { and, count, eq, gt, gte, isNull, lt, or } from "drizzle-orm";
+import { hojeISO } from "@/lib/format";
 import { db } from "@/db";
 import { auditoria, sessoes, usuarios } from "@/db/schema";
 import { hashSenha } from "@/lib/senha";
@@ -58,6 +59,8 @@ export const obterUsuarioAtual = cache(async (): Promise<UsuarioSessao | null> =
       eq(sessoes.tokenHash, hashToken(token)),
       gt(sessoes.expiraEm, new Date()),
       eq(usuarios.ativo, true),
+      // Acesso temporário: vale até o fim do dia informado (horário de Brasília).
+      or(isNull(usuarios.acessoAte), gte(usuarios.acessoAte, hojeISO())),
     ))
     .limit(1);
 

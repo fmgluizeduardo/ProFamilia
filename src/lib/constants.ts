@@ -265,4 +265,4 @@ export const ENCAMINHAMENTOS = [
   "Outro",
 ];
 
-export const VEICULO_PADRAO = "Kombi · DMN 4326";
+

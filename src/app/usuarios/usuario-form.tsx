@@ -17,6 +17,7 @@ import {
   Sparkles,
   Trash2,
   UserRound,
+  UsersRound,
 } from "lucide-react";
 import {
   DEPENDENCIAS,
@@ -38,13 +39,14 @@ export type UsuarioEditavel = {
   ativo: boolean;
   bloqueado: boolean;
   deveTrocarSenha: boolean;
+  acessoAte: string | null;
 };
 
 const inputCls =
   "h-12 w-full rounded-xl border border-ink-200/90 bg-white px-4 text-[0.92rem] font-medium text-ink-900 placeholder:font-normal placeholder:text-ink-300 focus:border-brand-400 focus:outline-none focus:ring-4 focus:ring-brand-100 disabled:bg-ink-50 disabled:text-ink-400";
 const labelCls = "mb-1.5 block text-[0.72rem] font-bold uppercase tracking-[0.1em] text-ink-500";
 
-const ICONE_TIPO = { ver: Eye, criar: Plus, editar: Pencil, excluir: Trash2 };
+const ICONE_TIPO = { ver: Eye, escopo: UsersRound, criar: Plus, editar: Pencil, excluir: Trash2 };
 
 function gerarSenhaTemporaria(): string {
   const letras = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ";
@@ -105,6 +107,7 @@ export function UsuarioForm({ usuario, ehProprio = false }: { usuario?: UsuarioE
   const [nome, setNome] = useState(usuario?.nome ?? "");
   const [login, setLogin] = useState(usuario?.login ?? "");
   const [cargo, setCargo] = useState(usuario?.cargo ?? "");
+  const [acessoAte, setAcessoAte] = useState(usuario?.acessoAte ?? "");
   const [papel, setPapel] = useState<Papel>(usuario?.papel ?? "usuario");
   const [permissoes, setPermissoes] = useState<Permissao[]>(normalizarPermissoes(usuario?.permissoes ?? PERFIS[0].permissoes));
   const [senha, setSenha] = useState(editando ? "" : gerarSenhaTemporaria());
@@ -148,12 +151,12 @@ export function UsuarioForm({ usuario, ehProprio = false }: { usuario?: UsuarioE
     setEnviando("salvar");
     try {
       if (editando) {
-        await chamar(`/api/usuarios/${usuario.id}`, "PATCH", { nome, cargo, papel, permissoes });
+        await chamar(`/api/usuarios/${usuario.id}`, "PATCH", { nome, cargo, papel, permissoes, acessoAte });
         setMsg({ tipo: "ok", texto: "Alterações salvas. Elas valem imediatamente para o usuário." });
         router.refresh();
       } else {
         const json = await chamar("/api/usuarios", "POST", {
-          nome, login: login.trim().toLowerCase(), cargo, papel, permissoes, senhaTemporaria: senha,
+          nome, login: login.trim().toLowerCase(), cargo, papel, permissoes, acessoAte, senhaTemporaria: senha,
         });
         // A senha é mostrada só nesta tela (nunca em URL, histórico ou logs).
         setCriado({ id: json.id, login: login.trim().toLowerCase(), senha });
@@ -261,6 +264,23 @@ export function UsuarioForm({ usuario, ehProprio = false }: { usuario?: UsuarioE
               <label className={labelCls}>Cargo / função</label>
               <input className={inputCls} value={cargo} onChange={(e) => setCargo(e.target.value)} placeholder="ex.: Assistente Social" maxLength={120} />
             </div>
+            {papel === "usuario" && (
+              <div className="sm:col-span-2">
+                <label className={labelCls}>Acesso válido até (opcional)</label>
+                <div className="flex flex-wrap items-center gap-2">
+                  <input type="date" className={`${inputCls} max-w-56`} value={acessoAte} onChange={(e) => setAcessoAte(e.target.value)} />
+                  {acessoAte && (
+                    <button type="button" onClick={() => setAcessoAte("")} className="text-[0.76rem] font-bold text-ink-500 hover:text-ink-800">
+                      Remover prazo
+                    </button>
+                  )}
+                </div>
+                <p className="mt-1.5 text-[0.72rem] text-ink-400">
+                  Para equipes temporárias (ex.: reforço na Festa do Peão, estagiários). Após essa data o acesso é
+                  bloqueado automaticamente, sem precisar desativar.
+                </p>
+              </div>
+            )}
             {!editando && (
               <div className="sm:col-span-2">
                 <CampoSenhaTemporaria valor={senha} onChange={setSenha} />

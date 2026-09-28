@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { db } from "./index";
-import { atendimentos, evolucoes, veiculoRegistros } from "./schema";
+import { atendimentos, evolucoes, veiculoRegistros, veiculos } from "./schema";
+import { rotuloVeiculo } from "../lib/frota";
 
 // TRAVA DE SEGURANÇA: este seed APAGA todas as tabelas antes de inserir dados
 // fictícios de demonstração. Só roda em banco local, a menos que a variável
@@ -25,6 +26,11 @@ function iso(diasAtras: number): string {
 async function main() {
   await db.delete(evolucoes);
   await db.delete(veiculoRegistros);
+  await db.delete(veiculos);
+  const [kombi] = await db
+    .insert(veiculos)
+    .values({ modelo: "Kombi", marca: "Volkswagen", placa: "DMN4326", kmInicial: 48000, cor: "Branca" })
+    .returning();
   await db.delete(atendimentos);
 
   const base = [
@@ -481,7 +487,9 @@ async function main() {
     chegadaKm: null,
     chegadaLocal: null,
   });
-  await db.insert(veiculoRegistros).values(registros);
+  await db
+    .insert(veiculoRegistros)
+    .values(registros.map((r) => ({ ...r, veiculoId: kombi.id, veiculo: rotuloVeiculo(kombi) })));
 
   console.log(`Seed concluído: ${inseridos.length} atendimentos, ${evs.length} evoluções, ${registros.length} registros de veículo.`);
   process.exit(0);

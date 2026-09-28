@@ -24,6 +24,8 @@ export const usuarios = pgTable("usuarios", {
   papel: text("papel").notNull().default("usuario"), // admin | usuario
   permissoes: text("permissoes").array().notNull().default([]),
   ativo: boolean("ativo").notNull().default(true),
+  /** Acesso temporário (ex.: equipe reforço da Festa do Peão): vale até o fim deste dia. */
+  acessoAte: date("acesso_ate"),
   deveTrocarSenha: boolean("deve_trocar_senha").notNull().default(true),
   tentativasFalhas: integer("tentativas_falhas").notNull().default(0),
   bloqueadoAte: timestamp("bloqueado_ate", { withTimezone: true }),
@@ -190,11 +192,29 @@ export const evolucoes = pgTable("evolucoes", {
   index("evolucoes_atendimento_idx").on(tabela.atendimentoId),
 ]);
 
+/** Frota de veículos do Instituto. Nunca excluídos, apenas desativados (histórico). */
+export const veiculos = pgTable("veiculos", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  modelo: text("modelo").notNull(),
+  marca: text("marca"),
+  placa: text("placa").notNull().unique(), // normalizada: maiúsculas, sem separadores
+  ano: integer("ano"),
+  cor: text("cor"),
+  kmInicial: integer("km_inicial").notNull().default(0),
+  observacoes: text("observacoes"),
+  ativo: boolean("ativo").notNull().default(true),
+  criadoPorId: uuid("criado_por_id").references(() => usuarios.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 /** Controle diário de saída de veículos */
 export const veiculoRegistros = pgTable("veiculo_registros", {
   id: uuid("id").defaultRandom().primaryKey(),
   data: date("data").notNull(),
-  veiculo: text("veiculo").notNull().default("Kombi · DMN 4326"),
+  veiculoId: uuid("veiculo_id").references(() => veiculos.id, { onDelete: "restrict" }),
+  /** Rótulo do veículo (modelo · placa), mantido para relatórios e histórico. */
+  veiculo: text("veiculo").notNull().default("Kombi · DMN-4326"),
   motorista: text("motorista").notNull(),
   saidaHora: text("saida_hora").notNull(),
   saidaKm: integer("saida_km").notNull(),
@@ -208,6 +228,7 @@ export const veiculoRegistros = pgTable("veiculo_registros", {
     .notNull(),
 }, (tabela) => [
   index("veiculo_registros_data_idx").on(tabela.data),
+  index("veiculo_registros_veiculo_idx").on(tabela.veiculoId),
 ]);
 
 export type Atendimento = typeof atendimentos.$inferSelect;
@@ -215,4 +236,5 @@ export type NovoAtendimento = typeof atendimentos.$inferInsert;
 export type Evolucao = typeof evolucoes.$inferSelect;
 export type VeiculoRegistro = typeof veiculoRegistros.$inferSelect;
 export type Usuario = typeof usuarios.$inferSelect;
+export type Veiculo = typeof veiculos.$inferSelect;
 export type RegistroAuditoria = typeof auditoria.$inferSelect;

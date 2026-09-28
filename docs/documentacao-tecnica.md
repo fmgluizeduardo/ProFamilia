@@ -238,3 +238,59 @@ auditoria; revisão da exposição de `assinatura_usuario` conforme LGPD.
   segunda cópia legível.
 - **Dependências:** `pdfkit`, `drizzle-orm`, `pg`, `next`, `react`,
   `lucide-react`; dev: `drizzle-kit`, `tsx`, `tailwindcss`, TS/ESLint.
+
+## 11. Frota e níveis de acesso (versão 2)
+
+**Frota (`veiculos`)**: modelo, marca, placa (normalizada, padrão antigo ou Mercosul,
+única), ano, cor, KM inicial, observações, ativo. Veículos nunca são excluídos —
+apenas desativados (preserva histórico). `veiculo_registros.veiculo_id` vincula
+cada percurso ao veículo; o texto `veiculo` ("Kombi · DMN-4326") é mantido para
+relatórios e é atualizado em todo o histórico quando modelo/placa são corrigidos.
+Migração `drizzle/0002_*.sql` cria a tabela, cadastra a Kombi DMN-4326 e vincula os
+percursos existentes.
+
+Regras (servidor): um percurso aberto por veículo; veículo inativo não sai;
+KM de saída ≥ maior KM registrado **até a data da saída** (permite digitar folhas
+antigas); KM inicial ≤ menor KM já registrado; não desativa veículo em rota;
+correção de percurso não reabre percurso concluído e exige chegada ≥ saída.
+
+APIs: `POST /api/frota` (`frota.cadastrar`), `PATCH /api/frota/[id]` (`frota.editar`,
+dados e/ou `ativo`), `POST /api/veiculos` (agora exige `veiculoId`),
+`PUT /api/veiculos/[id]` (`veiculos.editar`, correção completa com diff na auditoria).
+Telas: `/veiculos` (percursos, filtro `?veiculo=`) e `/veiculos/frota`.
+Camada de dados em `src/lib/frota-dados.ts`; utilitários client-safe em `src/lib/frota.ts`.
+
+**Catálogo atualizado de permissões**: `fichas.ver`, `fichas.ver_todas`, `fichas.criar`,
+`fichas.editar`, `fichas.excluir`, `evolucoes.criar`, `evolucoes.excluir`,
+`veiculos.ver`, `veiculos.registrar`, `veiculos.editar`, `veiculos.excluir`,
+`frota.cadastrar`, `frota.editar`, `gerencia.ver`, `relatorios.exportar`.
+Perfis: Equipe de campo, Apoio temporário, Motorista, Gestor de frota, Coordenação,
+Somente leitura.
+
+**Escopo de fichas (`src/lib/escopo.ts`)**: sem `fichas.ver_todas`, o usuário acessa
+somente fichas com `criado_por_id` igual ao seu id — em lista, início, detalhe,
+impressão, edição, exclusão e evoluções. Fora do escopo, a ficha responde **404**
+(não revela existência). Indicadores da gerência continuam estatísticos (todos os
+registros); a lista nominal da gerência respeita o escopo. PDF Completo/Prontuários
+e CSV exigem `fichas.ver_todas` (403 caso contrário).
+Na atualização, usuários existentes com `fichas.ver` receberam `fichas.ver_todas`
+para manter o acesso que já tinham (registrado na auditoria).
+
+**Validade do acesso (`usuarios.acesso_ate`)**: vale até o fim do dia (horário de
+Brasília). Verificada no login (mensagem específica) e em toda requisição
+(`obterUsuarioAtual`), derrubando sessões automaticamente após o prazo. Não pode ser
+data passada na criação; administradores nunca expiram.
+
+**Sessões**: admin lista e encerra sessões de qualquer usuário
+(`PATCH /api/usuarios/[id]` com `acao: "encerrar_sessoes"`, preservando a própria);
+cada usuário vê as suas em `/conta` e encerra as dos outros aparelhos
+(`POST /api/auth/sessoes`). Aparelho identificado pelo user-agent.
+
+**Transparência e revisão**: `/conta` mostra permissões do próprio usuário;
+`/usuarios/matriz` mostra usuários ativos × permissões (revisão periódica de acessos).
+Novas ações auditadas: `frota.criado|editado|desativado|reativado`,
+`veiculo.editado`, `usuario.sessoes_encerradas`.
+
+**Ambiente de preview**: a plataforma reescreve o `.env` (banco local) ao reiniciar;
+o `.env.local` (ignorado pelo Git) aponta o preview para o Neon e tem precedência.
+`drizzle-kit` e o seed leem apenas o `.env`, evitando alterar a produção por engano.

@@ -7,11 +7,14 @@ import { agoraHM, hojeISO } from "@/lib/format";
 
 const MOTORISTA_KEY = "profamilia:motorista";
 
-const inputCls =
-  "h-12 w-full rounded-xl border border-ink-200/90 bg-white px-4 text-[0.9rem] font-medium text-ink-900 placeholder:text-ink-300 focus:border-brand-400 focus:outline-none focus:ring-4 focus:ring-brand-100";
+export const inputCls =
+  "h-12 w-full rounded-xl border border-ink-200/90 bg-white px-4 text-[0.9rem] font-medium text-ink-900 placeholder:text-ink-300 focus:border-brand-400 focus:outline-none focus:ring-4 focus:ring-brand-100 disabled:bg-ink-50 disabled:text-ink-400";
 
-const labelCls =
+export const labelCls =
   "mb-1.5 block text-[0.72rem] font-bold uppercase tracking-[0.1em] text-ink-500";
+
+/** Veículo disponível para seleção na saída. */
+export type OpcaoVeiculo = { id: string; rotulo: string; kmAtual: number; emRota: boolean };
 
 /** Motorista memorizado no aparelho (vazio no servidor ou sem localStorage). */
 function lerMotoristaSalvo(): string {
@@ -23,40 +26,54 @@ function lerMotoristaSalvo(): string {
   }
 }
 
-/** Valores padrão da saída: data/hora atuais, motorista memorizado e último KM. */
-function padroesSaida(ultimoKm: number | null) {
+function primeiroDisponivel(veiculos: OpcaoVeiculo[]): OpcaoVeiculo | undefined {
+  return veiculos.find((v) => !v.emRota);
+}
+
+/** Valores padrão da saída: data/hora atuais, motorista memorizado e KM do veículo. */
+function padroesSaida(veiculo: OpcaoVeiculo | undefined) {
   return {
+    veiculoId: veiculo?.id ?? "",
     data: hojeISO(),
     saidaHora: agoraHM(),
     motorista: lerMotoristaSalvo(),
-    saidaKm: ultimoKm !== null ? String(ultimoKm) : "",
+    saidaKm: veiculo ? String(veiculo.kmAtual) : "",
   };
 }
 
-export function SaidaForm({ ultimoKm }: { ultimoKm: number | null }) {
+export function SaidaForm({ veiculos }: { veiculos: OpcaoVeiculo[] }) {
   const router = useRouter();
   const [aberto, setAberto] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
-  // Inicialização preguiçosa: executa uma única vez na montagem, sem useEffect.
-  // Os campos só aparecem após abrir o painel, então não há divergência de hidratação.
+  // Inicialização preguiçosa: roda uma vez na montagem, sem useEffect.
   const [form, setForm] = useState(() => ({
-    ...padroesSaida(ultimoKm),
+    ...padroesSaida(primeiroDisponivel(veiculos)),
     saidaLocal: "",
   }));
 
-  // Ao abrir, atualiza data/hora e KM (a página pode ter ficado aberta por horas
-  // e o último KM muda após cada registro) — mesmo comportamento de antes.
+  const selecionado = veiculos.find((v) => v.id === form.veiculoId);
+  const disponiveis = veiculos.filter((v) => !v.emRota).length;
+
+  // Ao abrir, atualiza data/hora e KM (a página pode ficar aberta por horas).
   function abrirFormulario() {
-    setForm((f) => ({ ...f, ...padroesSaida(ultimoKm) }));
+    const atual = veiculos.find((v) => v.id === form.veiculoId && !v.emRota) ?? primeiroDisponivel(veiculos);
+    setForm((f) => ({ ...f, ...padroesSaida(atual) }));
+    setErro(null);
     setAberto(true);
+  }
+
+  function escolherVeiculo(id: string) {
+    const v = veiculos.find((x) => x.id === id);
+    setForm((f) => ({ ...f, veiculoId: id, saidaKm: v ? String(v.kmAtual) : "" }));
   }
 
   async function enviar() {
     setErro(null);
+    if (!form.veiculoId) return setErro("Selecione o veículo.");
+    if (selecionado?.emRota) return setErro("Este veículo já está em rota. Registre a chegada antes.");
     if (!form.motorista.trim() || !form.saidaLocal.trim() || !form.saidaKm) {
-      setErro("Preencha motorista, KM e local de destino.");
-      return;
+      return setErro("Preencha motorista, KM e local de destino.");
     }
     setEnviando(true);
     try {
@@ -65,6 +82,7 @@ export function SaidaForm({ ultimoKm }: { ultimoKm: number | null }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          veiculoId: form.veiculoId,
           data: form.data,
           motorista: form.motorista.trim(),
           saidaHora: form.saidaHora,
@@ -79,8 +97,8 @@ export function SaidaForm({ ultimoKm }: { ultimoKm: number | null }) {
       router.refresh();
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Erro ao registrar saída.");
-      setEnviando(false);
     }
+    setEnviando(false);
   }
 
   if (!aberto) {
@@ -88,10 +106,11 @@ export function SaidaForm({ ultimoKm }: { ultimoKm: number | null }) {
       <button
         type="button"
         onClick={abrirFormulario}
-        className="inline-flex h-13 w-full items-center justify-center gap-2 rounded-2xl bg-ink-900 text-[0.9rem] font-bold text-white shadow-lift transition-all hover:bg-ink-800 active:scale-[0.99] sm:w-auto sm:px-7"
+        disabled={disponiveis === 0}
+        className="inline-flex h-13 w-full items-center justify-center gap-2 rounded-2xl bg-ink-900 text-[0.9rem] font-bold text-white shadow-lift transition-all hover:bg-ink-800 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:px-7"
       >
         <Plus className="h-4.5 w-4.5" />
-        Registrar saída do veículo
+        {disponiveis === 0 ? "Todos os veículos estão em rota" : "Registrar saída de veículo"}
       </button>
     );
   }
@@ -99,9 +118,7 @@ export function SaidaForm({ ultimoKm }: { ultimoKm: number | null }) {
   return (
     <div className="animate-pop rounded-2xl border border-ink-100/80 bg-card p-5 shadow-card">
       <div className="flex items-center justify-between">
-        <h3 className="font-display text-[0.95rem] font-bold text-ink-900">
-          Nova saída
-        </h3>
+        <h3 className="font-display text-[0.95rem] font-bold text-ink-900">Nova saída</h3>
         <button
           type="button"
           onClick={() => setAberto(false)}
@@ -111,59 +128,51 @@ export function SaidaForm({ ultimoKm }: { ultimoKm: number | null }) {
           <X className="h-4.5 w-4.5" />
         </button>
       </div>
-      <div className="mt-4 grid grid-cols-2 gap-3">
+      <div className="mt-4">
+        <label className={labelCls} htmlFor="saida-veiculo">Veículo</label>
+        <select
+          id="saida-veiculo"
+          className={`${inputCls} appearance-none`}
+          value={form.veiculoId}
+          onChange={(e) => escolherVeiculo(e.target.value)}
+        >
+          {veiculos.map((v) => (
+            <option key={v.id} value={v.id} disabled={v.emRota}>
+              {v.rotulo}{v.emRota ? " — em rota" : ""}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-3">
         <div>
           <label className={labelCls}>Data</label>
-          <input
-            type="date"
-            className={inputCls}
-            value={form.data}
-            onChange={(e) => setForm({ ...form, data: e.target.value })}
-          />
+          <input type="date" className={inputCls} value={form.data}
+            onChange={(e) => setForm({ ...form, data: e.target.value })} />
         </div>
         <div>
           <label className={labelCls}>Hora da saída</label>
-          <input
-            type="time"
-            className={inputCls}
-            value={form.saidaHora}
-            onChange={(e) => setForm({ ...form, saidaHora: e.target.value })}
-          />
+          <input type="time" className={inputCls} value={form.saidaHora}
+            onChange={(e) => setForm({ ...form, saidaHora: e.target.value })} />
         </div>
       </div>
       <div className="mt-3 grid grid-cols-2 gap-3">
         <div>
           <label className={labelCls}>Motorista</label>
-          <input
-            className={inputCls}
-            placeholder="Nome do motorista"
-            value={form.motorista}
-            onChange={(e) => setForm({ ...form, motorista: e.target.value })}
-          />
+          <input className={inputCls} placeholder="Nome do motorista" value={form.motorista}
+            onChange={(e) => setForm({ ...form, motorista: e.target.value })} />
         </div>
         <div>
           <label className={labelCls}>
-            KM de saída{ultimoKm !== null ? ` (último: ${ultimoKm.toLocaleString("pt-BR")})` : ""}
+            KM de saída{selecionado ? ` (último: ${selecionado.kmAtual.toLocaleString("pt-BR")})` : ""}
           </label>
-          <input
-            className={inputCls}
-            inputMode="numeric"
-            placeholder="Ex.: 48.250"
-            value={form.saidaKm}
-            onChange={(e) =>
-              setForm({ ...form, saidaKm: e.target.value.replace(/\D/g, "") })
-            }
-          />
+          <input className={inputCls} inputMode="numeric" placeholder="Ex.: 48.250" value={form.saidaKm}
+            onChange={(e) => setForm({ ...form, saidaKm: e.target.value.replace(/\D/g, "") })} />
         </div>
       </div>
       <div className="mt-3">
         <label className={labelCls}>Local / destino da ronda</label>
-        <input
-          className={inputCls}
-          placeholder="Ex.: Centro — Praças e Rodoviária"
-          value={form.saidaLocal}
-          onChange={(e) => setForm({ ...form, saidaLocal: e.target.value })}
-        />
+        <input className={inputCls} placeholder="Ex.: Centro — Praças e Rodoviária" value={form.saidaLocal}
+          onChange={(e) => setForm({ ...form, saidaLocal: e.target.value })} />
       </div>
       {erro && (
         <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5 text-[0.78rem] font-semibold text-red-700">
@@ -176,11 +185,7 @@ export function SaidaForm({ ultimoKm }: { ultimoKm: number | null }) {
         disabled={enviando}
         className="mt-4 inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sun-500 to-sun-600 text-[0.88rem] font-bold text-white transition-all hover:brightness-105 active:scale-[0.99] disabled:opacity-60"
       >
-        {enviando ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <LogIn className="h-4 w-4" />
-        )}
+        {enviando ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />}
         Confirmar saída
       </button>
     </div>
@@ -191,11 +196,11 @@ export function ChegadaForm({ registroId, saidaKm }: { registroId: string; saida
   const router = useRouter();
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
-  const [form, setForm] = useState({
+  const [form, setForm] = useState(() => ({
     chegadaHora: agoraHM(),
     chegadaKm: "",
     chegadaLocal: "Retorno à sede — Av. Loja Maçônica, 1.561",
-  });
+  }));
 
   async function enviar() {
     setErro(null);
@@ -225,39 +230,23 @@ export function ChegadaForm({ registroId, saidaKm }: { registroId: string; saida
 
   return (
     <div className="mt-4 border-t border-leaf-200/70 pt-4">
-      <p className="text-[0.72rem] font-bold uppercase tracking-[0.12em] text-leaf-700">
-        Registrar chegada
-      </p>
+      <p className="text-[0.72rem] font-bold uppercase tracking-[0.12em] text-leaf-700">Registrar chegada</p>
       <div className="mt-2.5 grid grid-cols-2 gap-3">
         <div>
           <label className={labelCls}>Hora</label>
-          <input
-            type="time"
-            className={inputCls}
-            value={form.chegadaHora}
-            onChange={(e) => setForm({ ...form, chegadaHora: e.target.value })}
-          />
+          <input type="time" className={inputCls} value={form.chegadaHora}
+            onChange={(e) => setForm({ ...form, chegadaHora: e.target.value })} />
         </div>
         <div>
           <label className={labelCls}>KM (saída: {saidaKm.toLocaleString("pt-BR")})</label>
-          <input
-            className={inputCls}
-            inputMode="numeric"
-            placeholder="KM atual"
-            value={form.chegadaKm}
-            onChange={(e) =>
-              setForm({ ...form, chegadaKm: e.target.value.replace(/\D/g, "") })
-            }
-          />
+          <input className={inputCls} inputMode="numeric" placeholder="KM atual" value={form.chegadaKm}
+            onChange={(e) => setForm({ ...form, chegadaKm: e.target.value.replace(/\D/g, "") })} />
         </div>
       </div>
       <div className="mt-3">
         <label className={labelCls}>Local de chegada</label>
-        <input
-          className={inputCls}
-          value={form.chegadaLocal}
-          onChange={(e) => setForm({ ...form, chegadaLocal: e.target.value })}
-        />
+        <input className={inputCls} value={form.chegadaLocal}
+          onChange={(e) => setForm({ ...form, chegadaLocal: e.target.value })} />
       </div>
       {erro && (
         <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5 text-[0.78rem] font-semibold text-red-700">
@@ -270,11 +259,7 @@ export function ChegadaForm({ registroId, saidaKm }: { registroId: string; saida
         disabled={enviando}
         className="mt-4 inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-leaf-600 text-[0.88rem] font-bold text-white transition-all hover:bg-leaf-700 active:scale-[0.99] disabled:opacity-60"
       >
-        {enviando ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <FlagTriangleRight className="h-4 w-4" />
-        )}
+        {enviando ? <Loader2 className="h-4 w-4 animate-spin" /> : <FlagTriangleRight className="h-4 w-4" />}
         Concluir percurso
       </button>
     </div>

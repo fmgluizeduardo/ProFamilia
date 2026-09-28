@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { evolucoes } from "@/db/schema";
+import { atendimentos, evolucoes } from "@/db/schema";
+import { fichaNoEscopo } from "@/lib/escopo";
 import { autorizarApi, registrarAuditoria } from "@/lib/auth";
 import { fmtDataHora } from "@/lib/format";
 import { uuidValido } from "@/lib/validacoes";
@@ -14,6 +15,14 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
 
   const [evo] = await db.select().from(evolucoes).where(eq(evolucoes.id, id)).limit(1);
   if (!evo) return NextResponse.json({ erro: "Evolução não encontrada." }, { status: 404 });
+  const [ficha] = await db
+    .select({ criadoPorId: atendimentos.criadoPorId })
+    .from(atendimentos)
+    .where(eq(atendimentos.id, evo.atendimentoId))
+    .limit(1);
+  if (!ficha || !fichaNoEscopo(auth.usuario, ficha)) {
+    return NextResponse.json({ erro: "Evolução não encontrada." }, { status: 404 });
+  }
 
   await db.delete(evolucoes).where(eq(evolucoes.id, id));
   await registrarAuditoria({

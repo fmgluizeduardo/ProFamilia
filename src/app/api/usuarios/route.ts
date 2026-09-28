@@ -5,7 +5,8 @@ import { usuarios } from "@/db/schema";
 import { autorizarApi, registrarAuditoria } from "@/lib/auth";
 import { LOGIN_REGEX, rotuloPermissao } from "@/lib/permissoes";
 import { hashSenha } from "@/lib/senha";
-import { LIMITE_NOME, papelValido, permissoesParaPapel } from "@/lib/usuarios-admin";
+import { LIMITE_NOME, lerValidade, papelValido, permissoesParaPapel } from "@/lib/usuarios-admin";
+import { fmtData, hojeISO } from "@/lib/format";
 import { texto } from "@/lib/validacoes";
 
 export async function POST(req: Request) {
@@ -39,6 +40,13 @@ export async function POST(req: Request) {
   const [existe] = await db.select({ id: usuarios.id }).from(usuarios).where(eq(usuarios.login, login)).limit(1);
   if (existe) return NextResponse.json({ erro: `O usuário “${login}” já existe. Escolha outro.` }, { status: 409 });
 
+  const validade = lerValidade(body.acessoAte);
+  if (validade === false) return NextResponse.json({ erro: "Data de validade do acesso inválida." }, { status: 422 });
+  if (validade && validade < hojeISO()) {
+    return NextResponse.json({ erro: "A validade do acesso não pode ser uma data passada." }, { status: 422 });
+  }
+  const acessoAte = papel === "admin" ? null : validade;
+
   const permissoes = permissoesParaPapel(papel, body.permissoes);
   if (papel === "usuario" && permissoes.length === 0) {
     return NextResponse.json({ erro: "Selecione ao menos uma permissão ou um perfil de acesso." }, { status: 422 });
@@ -48,7 +56,7 @@ export async function POST(req: Request) {
     const [criado] = await db
       .insert(usuarios)
       .values({
-        nome, login, cargo, papel, permissoes,
+        nome, login, cargo, papel, permissoes, acessoAte,
         senhaHash: await hashSenha(senha),
         deveTrocarSenha: true,
       })
@@ -56,7 +64,7 @@ export async function POST(req: Request) {
 
     await registrarAuditoria({
       usuario: auth.usuario, acao: "usuario.criado", entidade: "usuario", entidadeId: criado.id,
-      detalhes: `${nome} (@${login}) · ${papel === "admin" ? "Administrador" : permissoes.map(rotuloPermissao).join("; ")}`,
+      detalhes: `${nome} (@${login}) · ${papel === "admin" ? "Administrador" : permissoes.map(rotuloPermissao).join("; ")}${acessoAte ? ` · acesso até ${fmtData(acessoAte)}` : ""}`,
       req,
     });
     return NextResponse.json({ id: criado.id }, { status: 201 });
